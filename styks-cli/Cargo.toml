@@ -1,0 +1,13 @@
+[package]
+name = "styks-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+styks-contracts = { path = "../styks-contracts" }
+odra = { workspace = true }
+odra-cli = { workspace = true }
+
+[[bin]]
+name = "styks_cli"
+path = "cli.rs"
