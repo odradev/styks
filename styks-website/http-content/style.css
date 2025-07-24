@@ -95,9 +95,9 @@ body {
 }
 
 .container {
-    width: 98%;
+    width: 90%;
     max-width: 760px;
-    margin: 0 auto
+    margin: 0 auto;
 }
 
 section {
