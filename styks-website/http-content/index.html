@@ -46,7 +46,10 @@ mermaid.initialize({
 <li><a href="#why-does-casper-need-a-price-oracle">Why does Casper need a price oracle?</a></li>
 <li><a href="#onchain-integration">Onchain integration</a></li>
 <li><a href="#system-high-level-architecture">System High Level Architecture</a></li>
-<li><a href="#blocky">Blocky</a></li>
+<li><a href="#blocky">Blocky</a><ul>
+<li><a href="#how-styks-uses-blocky">How Styks Uses Blocky</a></li>
+</ul>
+</li>
 <li><a href="#heartbeat">Heartbeat</a></li>
 <li><a href="#time-weighted-average-price-twap">Time Weighted Average Price (TWAP)</a></li>
 <li><a href="#price-feed-id">Price Feed Id</a></li>
@@ -138,15 +141,35 @@ flowchart TB
     StyksAdmin --&gt;|"configure"| BlockyPriceFeed
 </div>
 <h2 id="blocky">Blocky</h2>
-<p>What makes Styks's architecture simple is using the
-<a href="https://blocky-docs.redocly.app/">Blocky</a> service. It allows anyone to execute
-arbitrary WASM file (aka guest program) and receive the result of its execution,
-along with the signature of the result, confirming the authenticity of the data.
-Guest programs can make HTTP requests which makes it perfect for Styks.</p>
-<p>The guest program used in Styks does one thing - it fetches the all the latest
-prices from the CoinGecko API and returns them as a single blob of data, signed
-by the Blocky server. This allows for trusted architecture with a single
-operator, later referred as the <code class="highlighter-rouge">PriceProducer</code>.</p>
+<p>Styks leverages <a href="https://blocky-docs.redocly.app/">Blocky</a>, a trusted execution
+service that solves a key challenge in oracle design: how to verify that
+external data hasn't been tampered with.</p>
+<p>Traditional oracles face a trust issue - how can smart contracts verify that
+price data actually came from the claimed source (like CoinGecko) and wasn't
+modified by the oracle operator?</p>
+<p>The Solution Blocky provides <strong>verifiable computation</strong> through these steps:</p>
+<ol>
+<li><strong>Guest Program</strong>: A small WebAssembly (WASM) program that contains the exact
+   logic for fetching data.</li>
+<li><strong>Secure Execution</strong>: Blocky runs this program in a secure environment. </li>
+<li><strong>Cryptographic Proof</strong>: Blocky signs the results, proving the data came from
+   running the specific program.</li>
+</ol>
+<h3 id="how-styks-uses-blocky">How Styks Uses Blocky</h3>
+<p><code class="highlighter-rouge">PriceProducer</code> uploads a simple guest program to Blocky that:</p>
+<ul>
+<li>Fetches the latest cryptocurrency prices from CoinGecko's API.</li>
+<li>Returns all prices as a single data package</li>
+<li>Gets cryptographically signed by Blocky's servers</li>
+</ul>
+<p>This signature proves that:</p>
+<ul>
+<li>The data actually came from CoinGecko (not fabricated)</li>
+<li>The specific program was executed (no hidden modifications)</li>
+<li>The results haven't been altered</li>
+</ul>
+<p>The <code class="highlighter-rouge">PriceProducer</code> simply executes this verified program and submits the signed
+results to the blockchain.</p>
 <h2 id="heartbeat">Heartbeat</h2>
 <p>Styks uses the heartbeat mechanism to control the price feed updates. It is a
 simple, but effective way of scheduling tasks. It requires <code class="highlighter-rouge">PriceProducer</code> to
@@ -216,7 +239,7 @@ the <code class="highlighter-rouge">StyksPriceFeed</code> smart contract. It is 
 prices from the <code class="highlighter-rouge">PriceProducer</code> and posting them to the <code class="highlighter-rouge">StyksPriceFeed</code>.</p>
 <p>It is configured as follows:</p>
 <ul>
-<li><code class="highlighter-rouge">blocky_wasm_hash</code> - hash of the Blocky server WASM file.</li>
+<li><code class="highlighter-rouge">blocky_wasm_hash</code> - hash of the Blocky's guest program (a WASM file).</li>
 <li><code class="highlighter-rouge">blocky_signing_key</code> - public key of the Blocky server, used to verify the
   signature of the prices.</li>
 <li><code class="highlighter-rouge">styks_price_feed_address</code> - address of the <code class="highlighter-rouge">StyksPriceFeed</code> contract,

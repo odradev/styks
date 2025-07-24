@@ -95,16 +95,38 @@ flowchart TB
 
 ## Blocky
 
-What makes Styks's architecture simple is using the
-[Blocky](https://blocky-docs.redocly.app/) service. It allows anyone to execute
-arbitrary WASM file (aka guest program) and receive the result of its execution,
-along with the signature of the result, confirming the authenticity of the data.
-Guest programs can make HTTP requests which makes it perfect for Styks.
+Styks leverages [Blocky](https://blocky-docs.redocly.app/), a trusted execution
+service that solves a key challenge in oracle design: how to verify that
+external data hasn't been tampered with.
 
-The guest program used in Styks does one thing - it fetches the all the latest
-prices from the CoinGecko API and returns them as a single blob of data, signed
-by the Blocky server. This allows for trusted architecture with a single
-operator, later referred as the `PriceProducer`.
+Traditional oracles face a trust issue - how can smart contracts verify that
+price data actually came from the claimed source (like CoinGecko) and wasn't
+modified by the oracle operator?
+
+The Solution Blocky provides **verifiable computation** through these steps:
+
+1. **Guest Program**: A small WebAssembly (WASM) program that contains the exact
+   logic for fetching data.
+2. **Secure Execution**: Blocky runs this program in a secure environment. 
+3. **Cryptographic Proof**: Blocky signs the results, proving the data came from
+   running the specific program.
+
+### How Styks Uses Blocky
+
+`PriceProducer` uploads a simple guest program to Blocky that:
+
+- Fetches the latest cryptocurrency prices from CoinGecko's API.
+- Returns all prices as a single data package
+- Gets cryptographically signed by Blocky's servers
+
+This signature proves that:
+
+- The data actually came from CoinGecko (not fabricated)
+- The specific program was executed (no hidden modifications)
+- The results haven't been altered
+
+The `PriceProducer` simply executes this verified program and submits the signed
+results to the blockchain.
 
 ## Heartbeat
 
@@ -191,7 +213,7 @@ prices from the `PriceProducer` and posting them to the `StyksPriceFeed`.
 
 It is configured as follows:
 
-- `blocky_wasm_hash` - hash of the Blocky server WASM file.
+- `blocky_wasm_hash` - hash of the Blocky's guest program (a WASM file).
 - `blocky_signing_key` - public key of the Blocky server, used to verify the
   signature of the prices.
 - `styks_price_feed_address` - address of the `StyksPriceFeed` contract,
