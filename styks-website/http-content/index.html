@@ -1,0 +1,308 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Styks - Casper Price Oracle</title>
+<link rel="stylesheet" href="style.css">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/rust.min.js"></script>
+<script>hljs.highlightAll();</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ 
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+        primaryColor: '#bb2528',
+        primaryTextColor: '#fff',
+        primaryBorderColor: '#7C0000',
+        lineColor: '#F8B229',
+        sectionBkgColor: '#1f2937',
+        altSectionBkgColor: '#374151',
+        gridColor: '#5a5a5a',
+        secondaryColor: '#006100',
+        tertiaryColor: '#fff'
+    }
+});
+</script>
+
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Styks</h1>
+    <h2>The very first Casper onchain price oracle.</h2>
+  </header>
+  
+  <section id="main_content">
+<p>Below you can find detailed description of the Styks architecture.</p>
+<div class="toc">
+<ul>
+<li><a href="#why-does-casper-need-a-price-oracle">Why does Casper need a price oracle?</a></li>
+<li><a href="#onchain-integration">Onchain integration</a></li>
+<li><a href="#system-high-level-architecture">System High Level Architecture</a></li>
+<li><a href="#blocky">Blocky</a></li>
+<li><a href="#heartbeat">Heartbeat</a></li>
+<li><a href="#time-weighted-average-price-twap">Time Weighted Average Price (TWAP)</a></li>
+<li><a href="#price-feed-id">Price Feed Id</a></li>
+<li><a href="#stykspricefeed-smart-contract">StyksPriceFeed Smart Contract</a></li>
+<li><a href="#blockypricefeed-smart-contract">BlockyPriceFeed Smart Contract</a></li>
+<li><a href="#update-price-feed-procedure">Update Price Feed Procedure</a><ul>
+<li><a href="#step-1-priceproducer-offchain-sequence">Step 1: PriceProducer offchain sequence:</a></li>
+<li><a href="#step-2-blockypricefeed-onchain-sequence">Step 2: BlockyPriceFeed onchain sequence:</a></li>
+<li><a href="#step-3-stykspricefeed-onchain-sequence">Step 3: StyksPriceFeed onchain sequence:</a></li>
+</ul>
+</li>
+<li><a href="#further-work">Further Work</a><ul>
+<li><a href="#multiple-price-producers">Multiple Price Producers</a></li>
+<li><a href="#governance">Governance</a></li>
+<li><a href="#beyond-price-feeds">Beyond Price Feeds</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<h2 id="why-does-casper-need-a-price-oracle">Why does Casper need a price oracle?</h2>
+<p>The price oracle is a piece of public infrastructure, that ports a price data
+from the outside world to the blockchain in safe manner. Lack of it, prevented
+Casper community from developing complex DeFi protocols, such as lending,
+borrowing, derivatives, complex liquidity pools, leverage trading, prediction
+markets and more.</p>
+<p>Styks brings a reliable and secure price feeds to the Casper ecosystem for
+others to build on top of it. </p>
+<p><strong>It is free to use!</strong></p>
+<h2 id="onchain-integration">Onchain integration</h2>
+<p>Before diving into details of how Styks works, if you just want to use the price
+feed in your smart contract, just call <code class="highlighter-rouge">get_price</code> entry point of the
+<code class="highlighter-rouge">StyksPriceFeed</code> smart contract. It returns the latest price for the requested
+price_feed_id, or <code class="highlighter-rouge">None</code> if the price feed is not available.</p>
+<p>You can integrate it into your smart contract using the <code class="highlighter-rouge">styks_price_feed</code> Rust
+crate. Example of loading <code class="highlighter-rouge">CSPRUSD</code> price from the <code class="highlighter-rouge">StyksPriceFeed</code> smart
+contract:</p>
+<pre class="codehilite"><code class="language-rust">let price: Option&lt;u128&gt; = styks_price_feed::get_price(
+    "hash-123...890", // address of the StyksPriceFeed contract
+    "CSPRUSD", // price feed id
+)
+</code></pre>
+<p>You can also use Odra-based integration to interact with the contract, use it in
+tests, or include it in your CLI application.</p>
+<h2 id="system-high-level-architecture">System High Level Architecture</h2>
+<p>Styks architecture consists of four main components:</p>
+<ul>
+<li>Blocky Server -  for fetching the latest, signed prices from the CoinGecko
+  API.</li>
+<li>Onchain smart contracts - <code class="highlighter-rouge">BlockyPriceFeed</code> and <code class="highlighter-rouge">StyksPriceFeed</code> for storing
+  and operation the prices onchain.</li>
+<li><code class="highlighter-rouge">PriceProducer</code> - offchain component, that is responsible for fetching the
+  latest prices from the Blocky Server and posting them to the <code class="highlighter-rouge">BlockyPriceFeed</code>
+  contract.</li>
+<li><code class="highlighter-rouge">StyksAdmin</code> - admin account, that is responsible for maintaining the correct configuration of smart contracts.</li>
+</ul>
+<div class="mermaid cf">
+---
+title: Styks Architecture Diagram
+---
+
+flowchart TB
+    subgraph Blocky Server
+      BlockyAPI
+      CoinGecko
+    end
+
+    subgraph Offchain Actors
+      PriceProducer
+      StyksAdmin
+    end
+
+    subgraph Casper Blockchain
+      OnchainConsumer
+      BlockyPriceFeed
+      StyksPriceFeed
+    end
+
+    %% Retrieve the latest price.
+    OnchainConsumer --&gt;|"get_price(symbol)"| StyksPriceFeed
+    StyksPriceFeed --&gt;|price| OnchainConsumer
+
+    %% Bringing the price onchain using blocky.
+    PriceProducer --&gt;|"call guest program"| BlockyAPI
+    BlockyAPI --&gt;|"get_prices(symbols)"| CoinGecko
+    CoinGecko --&gt;|"prices"| BlockyAPI
+    BlockyAPI --&gt;|"prices"| PriceProducer
+    PriceProducer --&gt;|"post_prices(signed_prices)"| BlockyPriceFeed
+    BlockyPriceFeed --&gt;|"post_prices(prices)"| StyksPriceFeed
+
+    %% Define price feeds.
+    StyksAdmin --&gt;|"configure"| StyksPriceFeed
+    StyksAdmin --&gt;|"configure"| BlockyPriceFeed
+</div>
+<h2 id="blocky">Blocky</h2>
+<p>What makes Styks's architecture simple is using the
+<a href="https://blocky-docs.redocly.app/">Blocky</a> service. It allows anyone to execute
+arbitrary WASM file (aka guest program) and receive the result of its execution,
+along with the signature of the result, confirming the authenticity of the data.
+Guest programs can make HTTP requests which makes it perfect for Styks.</p>
+<p>The guest program used in Styks does one thing - it fetches the all the latest
+prices from the CoinGecko API and returns them as a single blob of data, signed
+by the Blocky server. This allows for trusted architecture with a single
+operator, later referred as the <code class="highlighter-rouge">PriceProducer</code>.</p>
+<h2 id="heartbeat">Heartbeat</h2>
+<p>Styks uses the heartbeat mechanism to control the price feed updates. It is a
+simple, but effective way of scheduling tasks. It requires <code class="highlighter-rouge">PriceProducer</code> to
+update the price feed once per given time interval, labelled as
+<code class="highlighter-rouge">heartbeat_interval</code>. For example if the interval is 5 minutes, then heartbeats
+are at 00:00, 00:05, 00:10, etc. If the <code class="highlighter-rouge">PriceProducer</code> misses the heartbeat,
+then it should try to catch the next one.</p>
+<p>It is not possible to send the updates exactly at the heartbeat time, so
+<code class="highlighter-rouge">PriceProducer</code> is allowed to send it within some time around the heartbeat
+time, defined as <code class="highlighter-rouge">heartbeat_tolerance</code>. For example if the tolerance is 
+2 minutes, and the next heartbeat is at 11:05, then the <code class="highlighter-rouge">PriceProducer</code>
+can send the update between 11:03 and 11:07 (inclusive).</p>
+<p>Actions taken within the tolerance window are treated as they would happen
+exactly at the heartbeat time. This decision was made to simplify the system's
+design and allow for multiple <code class="highlighter-rouge">PriceProducers</code> to work in parallel in future.</p>
+<p>Data can be sent only once per heartbeat, so if the <code class="highlighter-rouge">PriceProducer</code> sends
+multiple updates within the tolerance window, only the first one is accepted
+and the rest are rejected.</p>
+<h2 id="time-weighted-average-price-twap">Time Weighted Average Price (TWAP)</h2>
+<p>Styks uses the Time Weighted Average Price (TWAP) algorithm to calculate the
+price. Due to the interval nature of the heartbeat mechanism, which ensures
+prices are updated in the constant intervals, the TWAP is calculated as a simple
+average of the price records over the last few heartbeats, defined as
+<code class="highlighter-rouge">twap_window</code>. It can be 1 (to use the latest price) or more.</p>
+<p>Algorithm should also handle missed heartbeats and allow some amounts of
+hertbeats to be missed before the price feed is considered invalid. It is
+defined as <code class="highlighter-rouge">twap_tolerance</code>. If it is set to 0, then no missed heartbeats are
+allowed. If 1 or more, then the price feed is still valid if the <code class="highlighter-rouge">PriceProducer</code>
+missed 1 heartbeat. For example if <code class="highlighter-rouge">twap_window</code> is 3 and <code class="highlighter-rouge">twap_tolerance</code> is 2,
+then the price feed is still valid if the <code class="highlighter-rouge">PriceProducer</code> missed 2 heartbeats,
+within the last 3 heartbeats.</p>
+<p>It still has the <code class="highlighter-rouge">TW</code> in its name, even that it is a simple average, but the
+algorithm might be extended in the future to use more complex TWAP version if
+heartbeat mechanism is changed.</p>
+<h2 id="price-feed-id">Price Feed Id</h2>
+<p>Each price feed is identified by a unique identifier, called <code class="highlighter-rouge">PriceFeedId</code>. The
+convention in Styks is to use the format <code class="highlighter-rouge">&lt;base_currency&gt;&lt;quote_currency&gt;</code>, for
+example <code class="highlighter-rouge">CSPRUSD</code> for Casper to USD price feed. Each <code class="highlighter-rouge">PriceFeedId</code> have
+associated information about the name of the CoinGecko symbol.</p>
+<h2 id="stykspricefeed-smart-contract">StyksPriceFeed Smart Contract</h2>
+<p>The <code class="highlighter-rouge">StyksPriceFeed</code> smart contract is the main smart contract of the system.
+It has multiple security roles. Each role is responsible for different aspects
+of the system.</p>
+<p>The roles are defined as follows:</p>
+<ul>
+<li><code class="highlighter-rouge">AdminRole</code> - manages roles of other accounts,</li>
+<li><code class="highlighter-rouge">ConfigManagerRole</code> - manages price feeds and their configurations,</li>
+<li><code class="highlighter-rouge">PriceSupplierRole</code> - must supply the price with new data according to the
+  heartbeat schedule,</li>
+</ul>
+<p>Anyone can read the twap price using the <code class="highlighter-rouge">get_twap_price(price_feed_id)</code> entry
+point. It returns the value or <code class="highlighter-rouge">None</code> if the price feed is not available, because
+of the missed heartbeats or not being configured.</p>
+<p>Configuration of the contract:</p>
+<ul>
+<li><code class="highlighter-rouge">heartbeat_interval</code>,</li>
+<li><code class="highlighter-rouge">heartbeat_tolerance</code>,</li>
+<li><code class="highlighter-rouge">twap_window</code>,</li>
+<li><code class="highlighter-rouge">twap_tolerance</code>,</li>
+<li><code class="highlighter-rouge">price_feed_ids</code> - list of enabled price feeds.</li>
+</ul>
+<h2 id="blockypricefeed-smart-contract">BlockyPriceFeed Smart Contract</h2>
+<p>The <code class="highlighter-rouge">BlockyPriceFeed</code> smart contract is a bridge between the Blocky server and
+the <code class="highlighter-rouge">StyksPriceFeed</code> smart contract. It is responsible for receiving the signed
+prices from the <code class="highlighter-rouge">PriceProducer</code> and posting them to the <code class="highlighter-rouge">StyksPriceFeed</code>.</p>
+<p>It is configured as follows:</p>
+<ul>
+<li><code class="highlighter-rouge">blocky_wasm_hash</code> - hash of the Blocky server WASM file.</li>
+<li><code class="highlighter-rouge">blocky_signing_key</code> - public key of the Blocky server, used to verify the
+  signature of the prices.</li>
+<li><code class="highlighter-rouge">styks_price_feed_address</code> - address of the <code class="highlighter-rouge">StyksPriceFeed</code> contract,
+  where the prices are posted.</li>
+<li><code class="highlighter-rouge">price_feed_id_metadata</code> - key-value map of the price feed ids and their
+  associated metadata, such as CoinGecko symbol. Example:<ul>
+<li>(<code class="highlighter-rouge">CSPRUSD</code>, <code class="highlighter-rouge">CoinGecko</code>) -&gt; <code class="highlighter-rouge">casper-network</code>,</li>
+<li>(<code class="highlighter-rouge">BTCUSD</code>, <code class="highlighter-rouge">CoinGecko</code>) -&gt; <code class="highlighter-rouge">bitcoin</code>.</li>
+</ul>
+</li>
+</ul>
+<p>It is also follows the security roles pattern:</p>
+<ul>
+<li><code class="highlighter-rouge">AdminRole</code> - manages roles of other accounts,</li>
+<li><code class="highlighter-rouge">ConfigManagerRole</code> - manages configuration of the contract,</li>
+<li><code class="highlighter-rouge">PriceSupplierRole</code> - supplies the output of the blocky server to the
+  contract.</li>
+</ul>
+<p><code class="highlighter-rouge">PriceProducer</code> must have the <code class="highlighter-rouge">PriceSupplierRole</code> role assigned in order to be
+able to post the prices.</p>
+<p>The <code class="highlighter-rouge">BlockyPriceFeed</code> contract must have the <code class="highlighter-rouge">PriceSupplierRole</code> role assigned
+in the <code class="highlighter-rouge">StyksPriceFeed</code> contract in order to be able to post the prices. </p>
+<h2 id="update-price-feed-procedure">Update Price Feed Procedure</h2>
+<p>Below is the exact sequence of actions that are taken to update the price feed
+with the latest prices.</p>
+<h3 id="step-1-priceproducer-offchain-sequence">Step 1: <code class="highlighter-rouge">PriceProducer</code> offchain sequence:</h3>
+<ul>
+<li><code class="highlighter-rouge">PriceProducer</code> checks in the <code class="highlighter-rouge">StyksPriceFeed</code> when is the next heartbeat.</li>
+<li>If the time is right, it starts the update procedure.</li>
+<li><code class="highlighter-rouge">PriceProducer</code> load list of active <code class="highlighter-rouge">PriceFeedId</code>s and their <code class="highlighter-rouge">CoinGecko</code>
+  symbols from the <code class="highlighter-rouge">BlockyPriceFeed</code> contract.</li>
+<li><code class="highlighter-rouge">PriceProducer</code> calls the <code class="highlighter-rouge">BlockyAPI</code> with the list of symbols to
+  fetch the latest prices. It uses the guest program that matches the
+  <code class="highlighter-rouge">blocky_wasm_hash</code> configured in the <code class="highlighter-rouge">BlockyPriceFeed</code> contract.</li>
+<li><code class="highlighter-rouge">BlockyAPI</code> responds with the signed prices.</li>
+<li><code class="highlighter-rouge">PriceProducer</code> posts the signed prices to the <code class="highlighter-rouge">BlockyPriceFeed</code> contract.</li>
+</ul>
+<h3 id="step-2-blockypricefeed-onchain-sequence">Step 2: <code class="highlighter-rouge">BlockyPriceFeed</code> onchain sequence:</h3>
+<ul>
+<li><code class="highlighter-rouge">BlockyPriceFeed</code> checks if the caller has the <code class="highlighter-rouge">PriceSupplierRole</code> role.</li>
+<li><code class="highlighter-rouge">BlockyPriceFeed</code> verifies data:</li>
+<li>if the signature matches the <code class="highlighter-rouge">blocky_signing_key</code>,</li>
+<li>if prices are valid,</li>
+<li>if <code class="highlighter-rouge">blocky_wasm_hash</code> matches the one configured in the contract.</li>
+<li>If all checks pass, it posts raw prices in the format of list(<code class="highlighter-rouge">PriceFeedId</code> -&gt;
+  price) to the <code class="highlighter-rouge">StyksPriceFeed</code> contract.</li>
+</ul>
+<h3 id="step-3-stykspricefeed-onchain-sequence">Step 3: <code class="highlighter-rouge">StyksPriceFeed</code> onchain sequence:</h3>
+<ul>
+<li><code class="highlighter-rouge">StyksPriceFeed</code> checks if the caller has the <code class="highlighter-rouge">PriceSupplierRole</code> role.</li>
+<li><code class="highlighter-rouge">StyksPriceFeed</code> for each price in the list checks the following:</li>
+<li>the <code class="highlighter-rouge">PriceFeedId</code> is enabled,</li>
+<li>the price is valid,</li>
+<li>the time is within the heartbeat tolerance,</li>
+<li>the price was not already posted in the current heartbeat.</li>
+<li>For each valid price, it update the price of the <code class="highlighter-rouge">PriceFeedId</code> in the
+  <code class="highlighter-rouge">StyksPriceFeed</code> contract.</li>
+</ul>
+<h2 id="further-work">Further Work</h2>
+<p>Above version of the Styks is the first one, that meets the basic requirements
+of the price oracle. It is simple, secure and efficient. However, there are some
+features that we are considering to implement.</p>
+<h3 id="multiple-price-producers">Multiple Price Producers</h3>
+<p>In the above model, there is only one <code class="highlighter-rouge">PriceProducer</code> that is responsible for
+fetching the prices from the <code class="highlighter-rouge">BlockyAPI</code> and posting them to the
+<code class="highlighter-rouge">BlockyPriceFeed</code> contract. To make system more resilient, we must allow
+multiple <code class="highlighter-rouge">PriceProducers</code> to work in parallel.</p>
+<p>We would like to introduce a token-based staking mechanism, that would allow
+anyone to become a <code class="highlighter-rouge">PriceProducer</code>.</p>
+<h3 id="governance">Governance</h3>
+<p>Initially, Odra.dev team will act as the <code class="highlighter-rouge">StyksAdmin</code>. We will monitor and
+maintain the system, but it is natural to us to transfer the ownership to the
+community. We think of a token-based voting DAO that would allow the community
+to vote on the changes to the system, such as adding new price feeds, changing
+the configuration and manage roles.</p>
+<h3 id="beyond-price-feeds">Beyond Price Feeds</h3>
+<p>Styks is a price oracle, but it can be used for porting any data from the
+outside world to the blockchain. There are two main use cases we are internally
+exploring:</p>
+<ul>
+<li>Porting data from other blockchains to Casper. For example, we can use
+  Blocky to fetch the balance of the Bitcoin address and build an escrow
+  to practically exchange BTC for CSPR.</li>
+<li>Quering OpenAI API and porting the results to the blockchain. This can be a
+  base for decentralized AI agents.</li>
+</ul>
+  </section>
+</div>
+</body>
+</html>

@@ -2,46 +2,11 @@
 
 Styks is the very first Casper onchain price oracle.
 
-[ToC](#toc)
+<!-- WEBSITE: START -->
 
-## Current Price
+Below you can find detailed description of the Styks architecture.
 
-```mermaid
----
-config:
-  themeVariables:
-    xyChart:
-      titleColor: '#00ff00'
----
-
-xychart-beta
-    title "CSPRUSD Price Feed"
-    x-axis ["01 Jan", "02 Jan", "03 Jan", "04 Jan", "05 Jan", "06 Jan", "07 Jan", "08 Jan", "09 Jan", "10 Jan", "11 Jan", "12 Jan"]
-    y-axis "Price [$]" 0.015 --> 0.035
-    line [.015, .016, .02, .025, .015, .02, .017, .021, .03, .027, .035, .033]
-```
-
-## Onchain integration
-
-Before diving into details of how Styks works, if you just want to use the price
-feed in your smart contract, just call `get_price` entry point of the
-`StyksPriceFeed` smart contract. It returns the latest price for the requested
-price_feed_id, or `None` if the price feed is not available.
-
-You can integrate it into your smart contract using the `styks_price_feed` Rust
-crate. Example of loading `CSPRUSD` price from the `StyksPriceFeed` smart
-contract:
-```rust
-let price: Option<u128> = styks_price_feed::get_price(
-    "hash-123...890", // address of the StyksPriceFeed contract
-    "CSPRUSD", // price feed id
-)
-```
-
-You can also use Odra-based integration to interact with the contract, use it in
-tests, or include it in your CLI application.
-
-TODO: Add example of Odra-based integration.
+[TOC]
 
 ## Why does Casper need a price oracle?
 
@@ -56,9 +21,33 @@ others to build on top of it.
 
 **It is free to use!**
 
+## Onchain integration
+
+Before diving into details of how Styks works, if you just want to use the price
+feed in your smart contract, just call `get_price` entry point of the
+`StyksPriceFeed` smart contract. It returns the latest price for the requested
+price_feed_id, or `None` if the price feed is not available.
+
+You can integrate it into your smart contract using the `styks_price_feed` Rust
+crate. Example of loading `CSPRUSD` price from the `StyksPriceFeed` smart
+contract:
+
+```rust
+let price: Option<u128> = styks_price_feed::get_price(
+    "hash-123...890", // address of the StyksPriceFeed contract
+    "CSPRUSD", // price feed id
+)
+```
+
+You can also use Odra-based integration to interact with the contract, use it in
+tests, or include it in your CLI application.
+
+TODO: Add example of Odra-based integration.
+
 ## System High Level Architecture
 
 Styks architecture consists of four main components:
+
 - Blocky Server -  for fetching the latest, signed prices from the CoinGecko
   API.
 - Onchain smart contracts - `BlockyPriceFeed` and `StyksPriceFeed` for storing
@@ -74,6 +63,11 @@ title: Styks Architecture Diagram
 ---
 
 flowchart TB
+    subgraph Blocky Server
+      BlockyAPI
+      CoinGecko
+    end
+
     subgraph Offchain Actors
       PriceProducer
       StyksAdmin
@@ -83,11 +77,6 @@ flowchart TB
       OnchainConsumer
       BlockyPriceFeed
       StyksPriceFeed
-    end
-
-    subgraph Blocky Server
-      BlockyAPI
-      CoinGecko
     end
 
     %% Retrieve the latest price.
@@ -177,16 +166,18 @@ It has multiple security roles. Each role is responsible for different aspects
 of the system.
 
 The roles are defined as follows:
-  - `AdminRole` - manages roles of other accounts,
-  - `ConfigManagerRole` - manages price feeds and their configurations,
-  - `PriceSupplierRole` - must supply the price with new data according to the
-    heartbeat schedule,
+
+- `AdminRole` - manages roles of other accounts,
+- `ConfigManagerRole` - manages price feeds and their configurations,
+- `PriceSupplierRole` - must supply the price with new data according to the
+  heartbeat schedule,
 
 Anyone can read the twap price using the `get_twap_price(price_feed_id)` entry
 point. It returns the value or `None` if the price feed is not available, because
 of the missed heartbeats or not being configured.
 
-Configuration of the contract.
+Configuration of the contract:
+
 - `heartbeat_interval`,
 - `heartbeat_tolerance`,
 - `twap_window`,
@@ -200,6 +191,7 @@ the `StyksPriceFeed` smart contract. It is responsible for receiving the signed
 prices from the `PriceProducer` and posting them to the `StyksPriceFeed`.
 
 It is configured as follows:
+
 - `blocky_wasm_hash` - hash of the Blocky server WASM file.
 - `blocky_signing_key` - public key of the Blocky server, used to verify the
   signature of the prices.
@@ -211,10 +203,11 @@ It is configured as follows:
     - (`BTCUSD`, `CoinGecko`) -> `bitcoin`.
 
 It is also follows the security roles pattern:
-  - `AdminRole` - manages roles of other accounts,
-  - `ConfigManagerRole` - manages configuration of the contract,
-  - `PriceSupplierRole` - supplies the output of the blocky server to the
-    contract.
+
+- `AdminRole` - manages roles of other accounts,
+- `ConfigManagerRole` - manages configuration of the contract,
+- `PriceSupplierRole` - supplies the output of the blocky server to the
+  contract.
 
 `PriceProducer` must have the `PriceSupplierRole` role assigned in order to be
 able to post the prices.
@@ -223,6 +216,9 @@ The `BlockyPriceFeed` contract must have the `PriceSupplierRole` role assigned
 in the `StyksPriceFeed` contract in order to be able to post the prices. 
 
 ## Update Price Feed Procedure
+
+Below is the exact sequence of actions that are taken to update the price feed
+with the latest prices.
 
 ### Step 1: `PriceProducer` offchain sequence:
 
@@ -257,6 +253,43 @@ in the `StyksPriceFeed` contract in order to be able to post the prices.
 - For each valid price, it update the price of the `PriceFeedId` in the
   `StyksPriceFeed` contract.
 
+## Further Work
+
+Above version of the Styks is the first one, that meets the basic requirements
+of the price oracle. It is simple, secure and efficient. However, there are some
+features that we are considering to implement.
+
+### Multiple Price Producers
+
+In the above model, there is only one `PriceProducer` that is responsible for
+fetching the prices from the `BlockyAPI` and posting them to the
+`BlockyPriceFeed` contract. To make system more resilient, we must allow
+multiple `PriceProducers` to work in parallel.
+
+We would like to introduce a token-based staking mechanism, that would allow
+anyone to become a `PriceProducer`.
+
+### Governance
+
+Initially, Odra.dev team will act as the `StyksAdmin`. We will monitor and
+maintain the system, but it is natural to us to transfer the ownership to the
+community. We think of a token-based voting DAO that would allow the community
+to vote on the changes to the system, such as adding new price feeds, changing
+the configuration and manage roles.
+
+### Beyond Price Feeds
+
+Styks is a price oracle, but it can be used for porting any data from the
+outside world to the blockchain. There are two main use cases we are internally
+exploring:
+
+- Porting data from other blockchains to Casper. For example, we can use
+  Blocky to fetch the balance of the Bitcoin address and build an escrow
+  to practically exchange BTC for CSPR.
+- Quering OpenAI API and porting the results to the blockchain. This can be a
+  base for decentralized AI agents.
+
+<!-- WEBSITE: END -->
 
 ## Ideas
 - Emit CEP95 NFTs on interesting price movements.
