@@ -50,52 +50,15 @@ def md_with_mermaid_to_html(md_text: str) -> str:
     # Post-process the body content
     body = post_process_html(body)
 
+    # Load the template HTML
+    with open("template.html", "r", encoding="utf-8") as f:
+        template = f.read()
+
+    # Insert the body into the template
+    template = template.replace("<!-- BODY -->", body)
+
     # Final HTML document including Mermaid script with proper structure
-    return f"""<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Styks - Casper Price Oracle</title>
-<link rel="stylesheet" href="style.css">
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/rust.min.js"></script>
-<script>hljs.highlightAll();</script>
-
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>
-mermaid.initialize({{ 
-    startOnLoad: true,
-    theme: 'dark',
-    themeVariables: {{
-        primaryColor: '#bb2528',
-        primaryTextColor: '#fff',
-        primaryBorderColor: '#7C0000',
-        lineColor: '#F8B229',
-        sectionBkgColor: '#1f2937',
-        altSectionBkgColor: '#374151',
-        gridColor: '#5a5a5a',
-        secondaryColor: '#006100',
-        tertiaryColor: '#fff'
-    }}
-}});
-</script>
-
-</head>
-<body>
-<div class="container">
-  <header>
-    <h1>Styks</h1>
-    <h2>The very first Casper onchain price oracle.</h2>
-  </header>
-  
-  <section id="main_content">
-{body}
-  </section>
-</div>
-</body>
-</html>"""
+    return template
 
 if __name__ == "__main__":
     with open(INPUT_MD, "r", encoding="utf-8") as f:

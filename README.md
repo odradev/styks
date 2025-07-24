@@ -1,10 +1,17 @@
 # Styks 
 
-Styks is the very first Casper onchain price oracle.
+The very first onchain price oracle for Casper.
 
 <!-- WEBSITE: START -->
 
-Below you can find detailed description of the Styks architecture.
+Below you can find detailed description of the Styks project.
+
+Join our [Telegram](https://t.me/+nZHCDA9rl6wzZGZl) to leave your feedback and
+follow the project. This is a community-driven project, so we are looking for
+contributors to help us with the development, testing, documentation and
+marketing.
+
+## Table of Contents
 
 [TOC]
 
