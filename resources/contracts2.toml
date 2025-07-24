@@ -1,0 +1,5 @@
+last_updated = "2025-07-17T22:47:03Z"
+
+[[contracts]]
+name = "PriceFeedManager"
+package_hash = "hash-441aa646c8ed79470c1a69c525553747cb0453fd18e19854afa587b099f89a0d"

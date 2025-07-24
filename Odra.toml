@@ -1,2 +1,5 @@
 [[contracts]]
 fqn = "styks_contracts::price_feed::PriceFeed"
+
+[[contracts]]
+fqn = "styks_contracts::price_feed_manager::PriceFeedManager"

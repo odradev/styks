@@ -6,7 +6,7 @@ use crate::error::PriceFeedError;
 
 pub type TimestampSec = u64;
 pub type DurationSec = u64;
-pub type Price = u32;
+pub type Price = u64;
 pub type PriceFeedId = String;
 
 #[odra::odra_type]
@@ -127,16 +127,20 @@ impl PriceFeed {
         self.config.set(config);
     }
 
-    pub fn is_initialized(&self) -> bool {
-        self.config.get().is_some()
-    }
-
     pub fn get_config(&self) -> PriceFeedConfig {
         self.config.get().unwrap_or_revert(&self.env())
     }
 
+    pub fn is_initialized(&self) -> bool {
+        self.config.get().is_some()
+    }
+
     pub fn get_twap_storage(&self) -> TwapStorage {
         self.twap_storage.get().unwrap_or_default()
+    }
+
+    pub fn set_twap_storage(&mut self, twap_storage: TwapStorage) {
+        self.twap_storage.set(twap_storage);
     }
 
     pub fn get_price_history_counter(&self) -> u64 {
@@ -149,10 +153,6 @@ impl PriceFeed {
 
     pub fn get_price_history(&self, id: u64) -> Option<PriceRecord> {
         self.price_history.get(&id)
-    }
-
-    pub fn set_twap_storage(&mut self, twap_storage: TwapStorage) {
-        self.twap_storage.set(twap_storage);
     }
 
     pub fn publish_price(&mut self, record: PriceRecord) {
@@ -197,6 +197,11 @@ impl PriceFeed {
         // Store the price record in the price history mapping.
         self.price_history.set(&counter, record);
     }
+
+    pub fn get_twap_price(&self) -> Option<Price> {
+        // Retrieve the TWAP storage and calculate the TWAP price.
+        self.get_twap_storage().twap_price()
+    }
 }
 
 
@@ -204,11 +209,9 @@ impl PriceFeed {
 mod tests {
     use odra::host::{Deployer, HostEnv, NoArgs};
 
-    use super::*;
+    use crate::minutes;
 
-    fn minutes(n: u64) -> DurationSec {
-        n * 60
-    }
+    use super::*;
 
     // -- Test PriceFeed ---
 

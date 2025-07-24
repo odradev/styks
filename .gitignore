@@ -1,4 +1,6 @@
-/target
+tmp/
+target
+.DS_Store
 .env
-wasm/*.wasm
 Cargo.lock
+wasm

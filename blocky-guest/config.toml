@@ -1,0 +1,3 @@
+acceptable_measurements = [{ platform = "nitro", code = "d77d0752b6ecc4ed87868f1f4858e1f894ad30ffb1fcc196923e75418fa2c1fd694d70a36bdcc04212d0c52171539d2e.4b4d5b3661b3efc12920900c80e126e4ce783c522de6c02a2a5bf7af3a2b9327b86776f188e4be1c1c404a129dbda493.9f156bd270df79f90ea3eab03e43ad6bb69c1736c3a3f729eba6b05e29fb8d0378bf04809de57ca0aa657d22d19f1ec1" }]
+auth_token = "MI0MaCe3qzB62bcK5vIw3XiuA6RSmjHa7S+vQPYaapwU3QrjlqX4Dr3Urtl+6A5cvIChnVkDsAzmzki21Q7V8A=="
+host = "https://api.bky.sh/prod/delphi/v0.1.0-beta.10"
