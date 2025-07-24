@@ -6,8 +6,6 @@ The very first onchain price oracle for Casper.
 
 Below you can find detailed description of the Styks project.
 
-## Table of Contents
-
 [TOC]
 
 ## Why does Casper need a price oracle?
