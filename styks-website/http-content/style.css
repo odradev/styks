@@ -95,7 +95,7 @@ body {
 }
 
 .container {
-    width: 90%;
+    width: 98%;
     max-width: 760px;
     margin: 0 auto
 }
@@ -133,7 +133,7 @@ header h1 {
     -webkit-font-smoothing: antialiased
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 760px) {
     header h1 {
         margin-left:0
     }
