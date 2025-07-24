@@ -58,9 +58,6 @@ Styks architecture consists of four main components:
 - `StyksAdmin` - admin account, that is responsible for maintaining the correct configuration of smart contracts.
 
 ```mermaid
----
-title: Styks Architecture Diagram
----
 
 flowchart TB
     subgraph Blocky Server
@@ -146,7 +143,9 @@ defined as `twap_tolerance`. If it is set to 0, then no missed heartbeats are
 allowed. If 1 or more, then the price feed is still valid if the `PriceProducer`
 missed 1 heartbeat. For example if `twap_window` is 3 and `twap_tolerance` is 2,
 then the price feed is still valid if the `PriceProducer` missed 2 heartbeats,
-within the last 3 heartbeats.
+within the last 3 heartbeats. Final price is calculated as a simple average of
+all available prices in the last `twap_window` heartbeats and in this example it
+is based on a single valid price, because 2 heartbeats were missed.
 
 It still has the `TW` in its name, even that it is a simple average, but the
 algorithm might be extended in the future to use more complex TWAP version if
@@ -215,10 +214,29 @@ able to post the prices.
 The `BlockyPriceFeed` contract must have the `PriceSupplierRole` role assigned
 in the `StyksPriceFeed` contract in order to be able to post the prices. 
 
-## Update Price Feed Procedure
+## Price Update Procedure
 
 Below is the exact sequence of actions that are taken to update the price feed
 with the latest prices.
+
+```mermaid
+
+sequenceDiagram
+    participant PriceProducer
+    participant BlockyAPI
+    participant BlockyPriceFeed
+    participant StyksPriceFeed
+
+    PriceProducer->>BlockyAPI: get_prices(symbols)
+    BlockyAPI-->>PriceProducer: signed_prices
+    PriceProducer->>BlockyPriceFeed: post_prices(signed_prices)
+    BlockyPriceFeed->>BlockyPriceFeed: validate input
+    BlockyPriceFeed->>StyksPriceFeed: post_prices(prices)
+
+    StyksPriceFeed->>StyksPriceFeed: validate input
+    StyksPriceFeed-->>BlockyPriceFeed: prices_validated
+    BlockyPriceFeed-->>PriceProducer: prices_posted
+```
 
 ### Step 1: `PriceProducer` offchain sequence:
 

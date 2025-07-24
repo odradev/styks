@@ -52,7 +52,7 @@ mermaid.initialize({
 <li><a href="#price-feed-id">Price Feed Id</a></li>
 <li><a href="#stykspricefeed-smart-contract">StyksPriceFeed Smart Contract</a></li>
 <li><a href="#blockypricefeed-smart-contract">BlockyPriceFeed Smart Contract</a></li>
-<li><a href="#update-price-feed-procedure">Update Price Feed Procedure</a><ul>
+<li><a href="#price-update-procedure">Price Update Procedure</a><ul>
 <li><a href="#step-1-priceproducer-offchain-sequence">Step 1: PriceProducer offchain sequence:</a></li>
 <li><a href="#step-2-blockypricefeed-onchain-sequence">Step 2: BlockyPriceFeed onchain sequence:</a></li>
 <li><a href="#step-3-stykspricefeed-onchain-sequence">Step 3: StyksPriceFeed onchain sequence:</a></li>
@@ -104,10 +104,6 @@ tests, or include it in your CLI application.</p>
 <li><code class="highlighter-rouge">StyksAdmin</code> - admin account, that is responsible for maintaining the correct configuration of smart contracts.</li>
 </ul>
 <div class="mermaid cf">
----
-title: Styks Architecture Diagram
----
-
 flowchart TB
     subgraph Blocky Server
       BlockyAPI
@@ -181,7 +177,9 @@ defined as <code class="highlighter-rouge">twap_tolerance</code>. If it is set t
 allowed. If 1 or more, then the price feed is still valid if the <code class="highlighter-rouge">PriceProducer</code>
 missed 1 heartbeat. For example if <code class="highlighter-rouge">twap_window</code> is 3 and <code class="highlighter-rouge">twap_tolerance</code> is 2,
 then the price feed is still valid if the <code class="highlighter-rouge">PriceProducer</code> missed 2 heartbeats,
-within the last 3 heartbeats.</p>
+within the last 3 heartbeats. Final price is calculated as a simple average of
+all available prices in the last <code class="highlighter-rouge">twap_window</code> heartbeats and in this example it
+is based on a single valid price, because 2 heartbeats were missed.</p>
 <p>It still has the <code class="highlighter-rouge">TW</code> in its name, even that it is a simple average, but the
 algorithm might be extended in the future to use more complex TWAP version if
 heartbeat mechanism is changed.</p>
@@ -241,9 +239,26 @@ prices from the <code class="highlighter-rouge">PriceProducer</code> and posting
 able to post the prices.</p>
 <p>The <code class="highlighter-rouge">BlockyPriceFeed</code> contract must have the <code class="highlighter-rouge">PriceSupplierRole</code> role assigned
 in the <code class="highlighter-rouge">StyksPriceFeed</code> contract in order to be able to post the prices. </p>
-<h2 id="update-price-feed-procedure">Update Price Feed Procedure</h2>
+<h2 id="price-update-procedure">Price Update Procedure</h2>
 <p>Below is the exact sequence of actions that are taken to update the price feed
 with the latest prices.</p>
+<div class="mermaid cf">
+sequenceDiagram
+    participant PriceProducer
+    participant BlockyAPI
+    participant BlockyPriceFeed
+    participant StyksPriceFeed
+
+    PriceProducer-&gt;&gt;BlockyAPI: get_prices(symbols)
+    BlockyAPI--&gt;&gt;PriceProducer: signed_prices
+    PriceProducer-&gt;&gt;BlockyPriceFeed: post_prices(signed_prices)
+    BlockyPriceFeed-&gt;&gt;BlockyPriceFeed: validate input
+    BlockyPriceFeed-&gt;&gt;StyksPriceFeed: post_prices(prices)
+
+    StyksPriceFeed-&gt;&gt;StyksPriceFeed: validate input
+    StyksPriceFeed--&gt;&gt;BlockyPriceFeed: prices_validated
+    BlockyPriceFeed--&gt;&gt;PriceProducer: prices_posted
+</div>
 <h3 id="step-1-priceproducer-offchain-sequence">Step 1: <code class="highlighter-rouge">PriceProducer</code> offchain sequence:</h3>
 <ul>
 <li><code class="highlighter-rouge">PriceProducer</code> checks in the <code class="highlighter-rouge">StyksPriceFeed</code> when is the next heartbeat.</li>
