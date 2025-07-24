@@ -6,11 +6,6 @@ The very first onchain price oracle for Casper.
 
 Below you can find detailed description of the Styks project.
 
-Join our [Telegram](https://t.me/+nZHCDA9rl6wzZGZl) to leave your feedback and
-follow the project. This is a community-driven project, so we are looking for
-contributors to help us with the development, testing, documentation and
-marketing.
-
 ## Table of Contents
 
 [TOC]
@@ -58,7 +53,7 @@ Styks architecture consists of four main components:
 - Blocky Server -  for fetching the latest, signed prices from the CoinGecko
   API.
 - Onchain smart contracts - `BlockyPriceFeed` and `StyksPriceFeed` for storing
-  and operation the prices onchain.
+  and operating the prices onchain.
 - `PriceProducer` - offchain component, that is responsible for fetching the
   latest prices from the Blocky Server and posting them to the `BlockyPriceFeed`
   contract.
@@ -295,6 +290,13 @@ exploring:
   to practically exchange BTC for CSPR.
 - Quering OpenAI API and porting the results to the blockchain. This can be a
   base for decentralized AI agents.
+
+## Join the Community
+
+Join our [Telegram](https://t.me/+nZHCDA9rl6wzZGZl) to leave your feedback and
+follow the project. This is a community-driven project, so we are looking for
+contributors to help us with the development, testing, documentation and
+marketing.
 
 <!-- WEBSITE: END -->
 
