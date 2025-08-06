@@ -1,12 +1,12 @@
 [workspace]
 members = [
     "styks-cli",
-    "styks-contracts",
+    "styks-contracts", "styks-core",
 ]
 resolver = "2"
 
 [workspace.dependencies]
-odra = { version = "2.2.0", features = [], default-features = false }
+odra = { version = "2.2.0" }
 odra-test = { version = "2.2.0", features = [], default-features = false }
 odra-build = { version = "2.2.0", features = [], default-features = false }
 odra-cli = { version = "2.2.0", features = [], default-features = false }
