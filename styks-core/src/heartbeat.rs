@@ -6,9 +6,9 @@ pub enum HeartbeatError {
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct HeartbeatWindow {
-    start: u64,
-    middle: u64,
-    end: u64,
+    pub start: u64,
+    pub middle: u64,
+    pub end: u64,
 }
 
 // This is a triplet of windows: (previous, current, next).
@@ -16,11 +16,10 @@ pub struct HeartbeatWindow {
 // Current may be None if current_time is not within the time window.
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct HeartbeatStatus {
-    previous: Option<HeartbeatWindow>,
-    current: Option<HeartbeatWindow>,
-    next: HeartbeatWindow,
+    pub previous: Option<HeartbeatWindow>,
+    pub current: Option<HeartbeatWindow>,
+    pub next: HeartbeatWindow,
 }
-
 
 #[cfg_attr(test, derive(Debug))]
 pub struct Heartbeat {
@@ -49,8 +48,119 @@ impl Heartbeat {
         })
     }
 
+    // Note: Method implemented by Cloude Sonnet 4.
     pub fn current_state(&self) -> HeartbeatStatus {
-        todo!()
+        // Heartbeats occur at multiples of interval: 0, interval, 2*interval, etc.
+        // Each heartbeat has a tolerance window: [heartbeat_time - tolerance, heartbeat_time + tolerance]
+        // But the start time cannot be negative, so it's max(0, heartbeat_time - tolerance)
+        
+        // Find all possible heartbeat times around current_time
+        let heartbeat_index = self.current_time / self.interval;
+        
+        // Check current heartbeat (at heartbeat_index * interval)
+        let current_heartbeat_time = heartbeat_index * self.interval;
+        let current_start = if current_heartbeat_time >= self.tolerance { 
+            current_heartbeat_time - self.tolerance 
+        } else { 
+            0 
+        };
+        let current_end = current_heartbeat_time + self.tolerance;
+        
+        // Check next heartbeat (at (heartbeat_index + 1) * interval)
+        let next_heartbeat_time = (heartbeat_index + 1) * self.interval;
+        let next_start = if next_heartbeat_time >= self.tolerance { 
+            next_heartbeat_time - self.tolerance 
+        } else { 
+            0 
+        };
+        let next_end = next_heartbeat_time + self.tolerance;
+        
+        // Determine which window we're in
+        let (current, previous, next) = if self.current_time >= current_start && self.current_time <= current_end {
+            // We're in the current heartbeat window
+            let current_window = HeartbeatWindow {
+                start: current_start,
+                middle: current_heartbeat_time,
+                end: current_end,
+            };
+            
+            let previous_window = if current_heartbeat_time > 0 {
+                let prev_time = current_heartbeat_time - self.interval;
+                let prev_start = if prev_time >= self.tolerance { 
+                    prev_time - self.tolerance 
+                } else { 
+                    0 
+                };
+                Some(HeartbeatWindow {
+                    start: prev_start,
+                    middle: prev_time,
+                    end: prev_time + self.tolerance,
+                })
+            } else {
+                None
+            };
+            
+            let next_window = HeartbeatWindow {
+                start: next_start,
+                middle: next_heartbeat_time,
+                end: next_end,
+            };
+            
+            (Some(current_window), previous_window, next_window)
+        } else if self.current_time >= next_start && self.current_time <= next_end {
+            // We're in the next heartbeat window
+            let current_window = HeartbeatWindow {
+                start: next_start,
+                middle: next_heartbeat_time,
+                end: next_end,
+            };
+            
+            let previous_window = Some(HeartbeatWindow {
+                start: current_start,
+                middle: current_heartbeat_time,
+                end: current_end,
+            });
+            
+            let next_next_time = (heartbeat_index + 2) * self.interval;
+            let next_next_start = if next_next_time >= self.tolerance { 
+                next_next_time - self.tolerance 
+            } else { 
+                0 
+            };
+            let next_window = HeartbeatWindow {
+                start: next_next_start,
+                middle: next_next_time,
+                end: next_next_time + self.tolerance,
+            };
+            
+            (Some(current_window), previous_window, next_window)
+        } else {
+            // We're not in any heartbeat window
+            // The previous window is the most recent heartbeat that has passed
+            let previous_window = if current_heartbeat_time > 0 || self.current_time > current_end {
+                Some(HeartbeatWindow {
+                    start: current_start,
+                    middle: current_heartbeat_time,
+                    end: current_end,
+                })
+            } else {
+                None
+            };
+            
+            let next_window = HeartbeatWindow {
+                start: next_start,
+                middle: next_heartbeat_time,
+                end: next_end,
+            };
+            
+            (None, previous_window, next_window)
+        };
+        
+        HeartbeatStatus {
+            previous,
+            current,
+            next,
+        }
     }
         
 }
