@@ -4,6 +4,24 @@ pub enum HeartbeatError {
     IntervalShouldBeGreaterThanZero,
 }
 
+#[cfg_attr(test, derive(Debug, PartialEq))]
+pub struct HeartbeatWindow {
+    start: u64,
+    middle: u64,
+    end: u64,
+}
+
+// This is a triplet of windows: (previous, current, next).
+// Previous may be None if current_time is 0.
+// Current may be None if current_time is not within the time window.
+#[cfg_attr(test, derive(Debug, PartialEq))]
+pub struct HeartbeatStatus {
+    previous: Option<HeartbeatWindow>,
+    current: Option<HeartbeatWindow>,
+    next: HeartbeatWindow,
+}
+
+
 #[cfg_attr(test, derive(Debug))]
 pub struct Heartbeat {
     current_time: u64,
@@ -31,33 +49,10 @@ impl Heartbeat {
         })
     }
 
-    // Previous heartbeat time.
-    // It doesn't exist if the current_time=0.
-    pub fn previous_heartbeat(&self) -> Option<u64> {
-        if self.current_time == 0 {
-            return None;
-        }
-
-        if self.current_time % self.interval == 0 {
-            return Some(self.current_time - self.interval);
-        }
-
-        Some(self.current_time - self.current_time % self.interval)
+    pub fn current_state(&self) -> HeartbeatStatus {
+        todo!()
     }
-
-    // Next heartbeat time.
-    pub fn next_heartbeat(&self) -> u64 {
-        if self.current_time == 0 {
-            return self.interval;
-        }
-
-        if self.current_time % self.interval == 0 {
-            return self.current_time + self.interval;
-        }
-
-        let previous_heartbeat = self.current_time - self.current_time % self.interval;
-        previous_heartbeat + self.interval
-    }
+        
 }
 
 #[cfg(test)]
@@ -66,38 +61,54 @@ mod tests {
 
     #[test]
     fn test_previous_heartbeat_time() {
-        fn check_prev(current_time: u64, expected: Option<u64>) {
+        fn check(current_time: u64, prev: Option<(u64, u64, u64)>, current: Option<(u64, u64, u64)>, next: (u64, u64, u64)) {
             let heartbeat = Heartbeat::new(current_time, 100, 10).unwrap();
-            let msg = format!(
-                "current_time: {}, expected: {:?}, actual: {:?}",
-                current_time,
-                expected,
-                heartbeat.previous_heartbeat()
-            );
-            assert_eq!(heartbeat.previous_heartbeat(), expected, "{}", msg);
+            let state = heartbeat.current_state();
+            
+            // Check previous heartbeat.
+            if let Some((start, middle, end)) = prev {
+                let prev = HeartbeatWindow { start, middle, end };
+                assert_eq!(state.previous, Some(prev));
+            } else {
+                assert_eq!(state.previous, None);
+            }
+
+            // Check current heartbeat.
+            if let Some((start, middle, end)) = current {
+                let current = HeartbeatWindow { start, middle, end };
+                assert_eq!(state.current, Some(current));
+            } else {
+                assert_eq!(state.current, None);
+            }
+
+            // Check next heartbeat.
+            let next = HeartbeatWindow {
+                start: next.0,
+                middle: next.1,
+                end: next.2,
+            };
+            assert_eq!(state.next, next);
         }
 
-        check_prev(0, None);
-        check_prev(99, Some(0));
-        check_prev(100, Some(0));
-        check_prev(101, Some(100));
-    }
+        // When current_time is 0, there's no previous heartbeat
+        check(0, None, Some((0, 0, 10)), (90, 100, 110));
+        
+        // When time is within the first heartbeat.
+        check(5, None, Some((0, 0, 10)), (90, 100, 110));
 
-    #[test]
-    fn test_next_heartbeat_time() {
-        fn check_next(current_time: u64, expected: u64) {
-            let heartbeat = Heartbeat::new(current_time, 100, 10).unwrap();
-            let msg = format!(
-                "current_time: {}, expected: {}, actual: {}",
-                current_time,
-                expected,
-                heartbeat.next_heartbeat()
-            );
-            assert_eq!(heartbeat.next_heartbeat(), expected, "{}", msg);
-        }
+        // When time is just after the first heartbeat, current is None.
+        check(15, Some((0, 0, 10)), None, (90, 100, 110));
 
-        check_next(0, 100);
-        check_next(99, 100);
-        check_next(100, 200);
+        // When time is within the second heartbeat.
+        check(105, Some((0, 0, 10)), Some((90, 100, 110)), (190, 200, 210));
+
+        // When time is at the edge of edge of the window.
+        check(190, Some((90, 100, 110)), Some((190, 200, 210)), (290, 300, 310));
+        check(210, Some((90, 100, 110)), Some((190, 200, 210)), (290, 300, 310));
+
+        // When is after 4th heartbeat window.
+        check(311, Some((290, 300, 310)), None, (390, 400, 410));
+        check(389, Some((290, 300, 310)), None, (390, 400, 410));
+
     }
 }
