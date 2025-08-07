@@ -25,6 +25,13 @@ def post_process_html(html_content: str) -> str:
         if 'cf' not in div.get('class', []):
             div['class'] = div.get('class', []) + ['cf']
     
+    # For each external link add target="_blank".
+    for a in soup.find_all('a', href=True):
+        # If the link is external (not starting with a # or /)
+        if not a['href'].startswith(('#', '/')) and not a['href'].startswith('mailto:'):
+            a['target'] = '_blank'
+            a['rel'] = 'noopener noreferrer'
+
 
     return str(soup)
 

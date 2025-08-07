@@ -4,6 +4,16 @@ The very first onchain price oracle for Casper.
 
 <!-- WEBSITE: START -->
 
+Styks is deployed on the Casper Testnet.
+
+- `StyksPriceFeed` contract: [testnet.cspr.live/b56f...b13f](https://testnet.cspr.live/contract-package/b56fdf8c9df0fdaea0351dab088d8253af63bb6ad4f64f011d5c1a14bbe9b13f)
+- Available price feed: `CSPRUSD`.
+- Heartbeat interval: `10 minutes`.
+
+Test it!<br/>
+
+---
+
 Below you can find detailed description of the Styks project.
 
 [TOC]
@@ -24,25 +34,29 @@ others to build on top of it.
 ## Onchain integration
 
 Before diving into details of how Styks works, if you just want to use the price
-feed in your smart contract, just call `get_price` entry point of the
+feed in your smart contract, just call `get_twap_price` entry point of the
 `StyksPriceFeed` smart contract. It returns the latest price for the requested
 price_feed_id, or `None` if the price feed is not available.
 
-You can integrate it into your smart contract using the `styks_price_feed` Rust
-crate. Example of loading `CSPRUSD` price from the `StyksPriceFeed` smart
-contract:
+Example using `Odra`:
 
 ```rust
-let price: Option<u128> = styks_price_feed::get_price(
-    "hash-123...890", // address of the StyksPriceFeed contract
-    "CSPRUSD", // price feed id
-)
+let styks = StyksPriceFeedContractRef::new(env, styks_price_feed_address);
+let price: Option<u64> = styks.get_twap_price(String::from("CSPRUSD"));
 ```
 
-You can also use Odra-based integration to interact with the contract, use it in
-tests, or include it in your CLI application.
+Example using `casper-contract`:
 
-TODO: Add example of Odra-based integration.
+```rust
+let price: Option<u64> = runtime::call_versioned_contract(
+    styks_price_feed_address,
+    None,
+    "get_twap_price",
+    runtime_args! {
+        "id" => String::from("CSPRUSD")
+    }
+);
+```
 
 ## System High Level Architecture
 
@@ -77,7 +91,7 @@ flowchart TB
     end
 
     %% Retrieve the latest price.
-    OnchainConsumer -->|"get_price(symbol)"| StyksPriceFeed
+    OnchainConsumer -->|"get_twap_price(symbol)"| StyksPriceFeed
     StyksPriceFeed -->|price| OnchainConsumer
 
     %% Bringing the price onchain using blocky.
@@ -260,7 +274,7 @@ sequenceDiagram
     BlockyPriceFeed-->>PriceProducer: prices_posted
 ```
 
-### Step 1: `PriceProducer` offchain sequence:
+### Step 1: `PriceProducer` offchain sequence
 
 - `PriceProducer` checks in the `StyksPriceFeed` when is the next heartbeat.
 - If the time is right, it starts the update procedure.
@@ -272,7 +286,7 @@ sequenceDiagram
 - `BlockyAPI` responds with the signed prices.
 - `PriceProducer` posts the signed prices to the `BlockyPriceFeed` contract.
 
-### Step 2: `BlockyPriceFeed` onchain sequence:
+### Step 2: `BlockyPriceFeed` onchain sequence
 
 - `BlockyPriceFeed` checks if the caller has the `PriceSupplierRole` role.
 - `BlockyPriceFeed` verifies data:
@@ -282,7 +296,7 @@ sequenceDiagram
 - If all checks pass, it posts raw prices in the format of list(`PriceFeedId` ->
   price) to the `StyksPriceFeed` contract.
 
-### Step 3: `StyksPriceFeed` onchain sequence:
+### Step 3: `StyksPriceFeed` onchain sequence
 
 - `StyksPriceFeed` checks if the caller has the `PriceSupplierRole` role.
 - `StyksPriceFeed` for each price in the list checks the following:
