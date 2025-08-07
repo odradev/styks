@@ -2,7 +2,7 @@ default:
     just -l
 
 test:
-    cargo odra test
+    cargo odra test -b casper
 
 cli *ARGS:
     cargo run --bin styks-cli -- {{ARGS}}

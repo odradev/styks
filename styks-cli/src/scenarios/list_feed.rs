@@ -1,6 +1,9 @@
 use odra::{host::HostEnv, schema::casper_contract_schema::NamedCLType};
-use odra_cli::{scenario::{Args, Error, Scenario, ScenarioMetadata}, CommandArg, ContractProvider, DeployedContractsContainer};
-use styks_contracts::price_feed_manager::{PriceFeedManager};
+use odra_cli::{
+    scenario::{Args, Error, Scenario, ScenarioMetadata},
+    CommandArg, ContractProvider, DeployedContractsContainer,
+};
+use styks_contracts::price_feed_manager::PriceFeedManager;
 
 pub struct ListFeed;
 
@@ -11,30 +14,41 @@ impl ScenarioMetadata for ListFeed {
 
 impl Scenario for ListFeed {
     fn args(&self) -> Vec<CommandArg> {
-        vec![
-            CommandArg::new("price_feed_id", "The ID of the price feed to add.", NamedCLType::String)
-            .required()
-        ]
+        vec![CommandArg::new(
+            "price_feed_id",
+            "The ID of the price feed to add.",
+            NamedCLType::String,
+        )
+        .required()]
     }
     fn run(
         &self,
         env: &HostEnv,
         container: &DeployedContractsContainer,
-        args: Args
+        args: Args,
     ) -> core::result::Result<(), Error> {
         let contract = container.contract_ref::<PriceFeedManager>(&env)?;
-        
+
         let price_feed_id: String = args.get_single("price_feed_id")?;
         let price = contract.get_price(&price_feed_id);
         if let Some(price) = price {
-            odra_cli::log(format!("Price feed {} has price: ${}", price_feed_id, parse_price(price)));
+            odra_cli::log(format!(
+                "Price feed {} has price: ${}",
+                price_feed_id,
+                parse_price(price)
+            ));
         } else {
             odra_cli::log(format!("Price feed {} is not initialized.", price_feed_id));
-            return Err(Error::OdraError { message: format!("Price feed {} is not initialized.", price_feed_id) });
+            return Err(Error::OdraError {
+                message: format!("Price feed {} is not initialized.", price_feed_id),
+            });
         };
 
         let history_records_count = contract.get_price_feed_history_counter(&price_feed_id);
-        odra_cli::log(format!("Price feed {} has {} history records.", price_feed_id, history_records_count));
+        odra_cli::log(format!(
+            "Price feed {} has {} history records.",
+            price_feed_id, history_records_count
+        ));
 
         let current_time = env.block_time_secs();
         odra_cli::log(format!("Current timestamp: {}", current_time));
@@ -87,24 +101,43 @@ fn parse_duration(duration: u64) -> String {
     let years = duration / 31536000;
 
     if years > 0 {
-        parts.push(format!("{} year{}", years, if years > 1 { "s" } else { "" }));
+        parts.push(format!(
+            "{} year{}",
+            years,
+            if years > 1 { "s" } else { "" }
+        ));
     }
     if months > 0 {
-        parts.push(format!("{} month{}", months, if months > 1 { "s" } else { "" }));
+        parts.push(format!(
+            "{} month{}",
+            months,
+            if months > 1 { "s" } else { "" }
+        ));
     }
     if days > 0 {
         parts.push(format!("{} day{}", days, if days > 1 { "s" } else { "" }));
     }
     if hours > 0 {
-        parts.push(format!("{} hour{}", hours, if hours > 1 { "s" } else { "" }));
+        parts.push(format!(
+            "{} hour{}",
+            hours,
+            if hours > 1 { "s" } else { "" }
+        ));
     }
     if minutes > 0 {
-        parts.push(format!("{} minute{}", minutes, if minutes > 1 { "s" } else { "" }));
+        parts.push(format!(
+            "{} minute{}",
+            minutes,
+            if minutes > 1 { "s" } else { "" }
+        ));
     }
     if seconds > 0 {
-        parts.push(format!("{} second{}", seconds, if seconds > 1 { "s" } else { "" }));
+        parts.push(format!(
+            "{} second{}",
+            seconds,
+            if seconds > 1 { "s" } else { "" }
+        ));
     }
 
     parts.join(", ")
-
 }

@@ -3,12 +3,5 @@
 
 extern crate alloc;
 
-use crate::price_feed::DurationSec;
+pub mod styks_price_feed;
 
-pub mod error;
-pub mod price_feed;
-pub mod price_feed_manager;
-
-pub fn minutes(n: u64) -> DurationSec {
-    n * 60
-}

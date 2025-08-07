@@ -1,6 +1,9 @@
 use odra::host::HostEnv;
-use odra_cli::{scenario::{Args, Error, Scenario, ScenarioMetadata}, ContractProvider, DeployedContractsContainer};
-use styks_contracts::price_feed_manager::{ContractRole, PriceFeedManager};
+use odra_cli::{
+    scenario::{Args, Error, Scenario, ScenarioMetadata},
+    ContractProvider, DeployedContractsContainer,
+};
+use styks_contracts::styks_price_feed::{StyksPriceFeedRole, StyksPriceFeed};
 
 pub struct GrantMeAllRoles;
 
@@ -14,25 +17,25 @@ impl Scenario for GrantMeAllRoles {
         &self,
         env: &HostEnv,
         container: &DeployedContractsContainer,
-        _args: Args
+        _args: Args,
     ) -> core::result::Result<(), Error> {
-        let mut contract = container.contract_ref::<PriceFeedManager>(&env)?;
+        let mut contract = container.contract_ref::<StyksPriceFeed>(&env)?;
         let address = env.caller();
 
-        if contract.has_role(&ContractRole::PriceFeedManager.role_id(), &address) {
-            odra_cli::log("Already has PriceFeedManager.");
+        if contract.has_role(&StyksPriceFeedRole::ConfigManager.role_id(), &address) {
+            odra_cli::log("Already is ConfigManager.");
         } else {
-            odra_cli::log("Granting PriceFeedManager role.");
+            odra_cli::log("Granting ConfigManager role.");
             env.set_gas(2_500_000_000);
-            contract.grant_role(&ContractRole::PriceFeedManager.role_id(), &address);
+            contract.grant_role(&StyksPriceFeedRole::ConfigManager.role_id(), &address);
         }
 
-        if contract.has_role(&ContractRole::PriceSuppliers.role_id(), &address) {
-            odra_cli::log("Already has PriceSuppliers.");
+        if contract.has_role(&StyksPriceFeedRole::PriceSupplier.role_id(), &address) {
+            odra_cli::log("Already is PriceSupplier.");
         } else {
-            odra_cli::log("Granting PriceSuppliers role.");
+            odra_cli::log("Granting PriceSupplier role.");
             env.set_gas(2_500_000_000);
-            contract.grant_role(&ContractRole::PriceSuppliers.role_id(), &address);
+            contract.grant_role(&StyksPriceFeedRole::PriceSupplier.role_id(), &address);
         }
 
         Ok(())

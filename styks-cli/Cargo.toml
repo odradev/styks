@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 styks-contracts = { path = "../styks-contracts" }
+styks-core = { path = "../styks-core" }
 odra = { workspace = true }
 odra-cli = { workspace = true }
 ureq = "3.0.12"

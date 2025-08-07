@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 odra = { workspace = true }
 odra-modules = { workspace = true }
+styks-core = { path = "../styks-core" }
 
 [dev-dependencies]
 odra-test = { workspace = true }
