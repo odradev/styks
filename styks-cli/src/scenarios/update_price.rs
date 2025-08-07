@@ -92,7 +92,7 @@ impl Updater {
             ).unwrap();
             let heartbeat_status = heartbeat.current_state();
             let missed_heartbeat = heartbeat.count_missed_heartbeats_since(last_heartbeat);
-            odra_cli::log(format!("Heartbeat status:\n{:#?}", heartbeat_status));
+            // odra_cli::log(format!("Heartbeat status:\n{:#?}", heartbeat_status));
             odra_cli::log(format!(
                 "Missed heartbeats since last heartbeat: {}",
                 missed_heartbeat
@@ -118,7 +118,14 @@ impl Updater {
                 }    
             }
 
+             // Load current time.
+            let current_time = current_timestamp_secs();
+            odra_cli::log(format!("Current time: {}", current_time));
             let next_heartbeat_time = heartbeat_status.next.middle;
+            odra_cli::log(format!(
+                "Next heartbeat time: {}",
+                next_heartbeat_time
+            ));
             let sleep_time = next_heartbeat_time.saturating_sub(current_time);
             odra_cli::log(format!(
                 "Sleeping for {} seconds until next heartbeat.",

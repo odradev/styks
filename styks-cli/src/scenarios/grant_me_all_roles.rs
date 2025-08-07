@@ -1,4 +1,4 @@
-use odra::host::HostEnv;
+use odra::{host::HostEnv, prelude::Address};
 use odra_cli::{
     scenario::{Args, Error, Scenario, ScenarioMetadata},
     ContractProvider, DeployedContractsContainer,
@@ -21,6 +21,14 @@ impl Scenario for GrantMeAllRoles {
     ) -> core::result::Result<(), Error> {
         let mut contract = container.contract_ref::<StyksPriceFeed>(&env)?;
         let address = env.caller();
+
+        // let address = "account-hash-915691433d2c86c6145e46e3c5f3d266d87be6448de5dc8a4c4e710384372916";
+        // let address = Address::new(address).unwrap();
+
+        odra_cli::log(format!(
+            "Granting all roles to address: {:?}",
+            address
+        ));
 
         if contract.has_role(&StyksPriceFeedRole::ConfigManager.role_id(), &address) {
             odra_cli::log("Already is ConfigManager.");

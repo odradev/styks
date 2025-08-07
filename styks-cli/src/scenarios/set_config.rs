@@ -23,15 +23,15 @@ impl Scenario for SetConfig {
     ) -> core::result::Result<(), Error> {
         let mut contract = container.contract_ref::<StyksPriceFeed>(&env)?;
         let config = StyksPriceFeedConfig {
-            heartbeat_interval: 60,
-            heartbeat_tolerance: 20,
-            twap_window: 5,
-            twap_tolerance: 3,
+            heartbeat_interval: 10 * 60,
+            heartbeat_tolerance: 30,
+            twap_window: 3,
+            twap_tolerance: 1,
             price_feed_ids: vec![String::from("CSPRUSD")],
         };
 
         odra_cli::log(format!("Setting configuration."));
-        env.set_gas(10_000_000_000);
+        env.set_gas(5_000_000_000);
         contract.set_config(config);
         Ok(())
     }
