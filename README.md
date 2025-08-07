@@ -6,7 +6,7 @@ The very first onchain price oracle for Casper.
 
 Styks is deployed on the Casper Testnet.
 
-- `StyksPriceFeed` contract: [testnet.cspr.live/b56f...b13f](https://testnet.cspr.live/contract-package/b56fdf8c9df0fdaea0351dab088d8253af63bb6ad4f64f011d5c1a14bbe9b13f)
+- `StyksPriceFeed` contract: [testnet.cspr.live/7041...1b7a](https://testnet.cspr.live/contract-package/70410407f6ddfbd2c94724ff2fa9bc9c1e570a0017dbbaae89b6856b5dae1b7a).
 - Available price feed: `CSPRUSD`.
 - Heartbeat interval: `10 minutes`.
 

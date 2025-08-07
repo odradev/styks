@@ -42,7 +42,7 @@ mermaid.initialize({
   <section id="main_content">
 <p>Styks is deployed on the Casper Testnet.</p>
 <ul>
-<li><code class="highlighter-rouge">StyksPriceFeed</code> contract: <a href="https://testnet.cspr.live/contract-package/b56fdf8c9df0fdaea0351dab088d8253af63bb6ad4f64f011d5c1a14bbe9b13f" rel="noopener noreferrer" target="_blank">testnet.cspr.live/b56f...b13f</a></li>
+<li><code class="highlighter-rouge">StyksPriceFeed</code> contract: <a href="https://testnet.cspr.live/contract-package/70410407f6ddfbd2c94724ff2fa9bc9c1e570a0017dbbaae89b6856b5dae1b7a" rel="noopener noreferrer" target="_blank">testnet.cspr.live/7041...1b7a</a>.</li>
 <li>Available price feed: <code class="highlighter-rouge">CSPRUSD</code>.</li>
 <li>Heartbeat interval: <code class="highlighter-rouge">10 minutes</code>.</li>
 </ul>
@@ -137,7 +137,7 @@ flowchart TB
     end
 
     %% Retrieve the latest price.
-    OnchainConsumer --&gt;|"get_price(symbol)"| StyksPriceFeed
+    OnchainConsumer --&gt;|"get_twap_price(symbol)"| StyksPriceFeed
     StyksPriceFeed --&gt;|price| OnchainConsumer
 
     %% Bringing the price onchain using blocky.
