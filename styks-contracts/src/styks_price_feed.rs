@@ -232,6 +232,9 @@ impl StyksPriceFeed {
         // Update the TWAP store with the new prices.
         for (id, price) in input {
             let twap_prices = self.twap_store.get(&id).unwrap_or_default();
+            // TODO: If there is more prices then the TWAP window, remove the oldest one.
+            // TODO: This should be done in the TWAP module.
+
             let mut twap = TWAP::new(
                 config.twap_window,
                 config.twap_tolerance,

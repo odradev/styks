@@ -1,6 +1,6 @@
 //! This example demonstrates how to use the `odra-cli` tool to deploy and interact with a smart contract.
 
-use odra::host::{HostEnv, NoArgs};
+use odra::{contract_def::HasIdent, host::{HostEnv, InstallConfig, NoArgs}};
 use odra_cli::{deploy::DeployScript, DeployedContractsContainer, DeployerExt, OdraCli};
 use styks_contracts::styks_price_feed::StyksPriceFeed;
 
@@ -13,7 +13,12 @@ impl DeployScript for ContractsDeployScript {
         env: &HostEnv,
         container: &mut DeployedContractsContainer,
     ) -> Result<(), odra_cli::deploy::Error> {
-        StyksPriceFeed::load_or_deploy(env, NoArgs, container, 400_000_000_000)?;
+        let cfg = InstallConfig {
+            package_named_key: StyksPriceFeed::ident(),
+            is_upgradable: true,
+            allow_key_override: true,
+        };
+        StyksPriceFeed::load_or_deploy_with_cfg(env, NoArgs, cfg, container, 400_000_000_000)?;
         Ok(())
     }
 }

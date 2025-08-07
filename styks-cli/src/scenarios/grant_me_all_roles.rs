@@ -1,4 +1,5 @@
-use odra::{host::HostEnv, prelude::Address};
+use odra::prelude::*;
+use odra::host::HostEnv;
 use odra_cli::{
     scenario::{Args, Error, Scenario, ScenarioMetadata},
     ContractProvider, DeployedContractsContainer,
