@@ -6,11 +6,11 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-odra = { version = "2.2.0" }
-odra-test = { version = "2.2.0", features = [], default-features = false }
-odra-build = { version = "2.2.0", features = [], default-features = false }
-odra-cli = { version = "2.2.0", features = [], default-features = false }
-odra-modules = { version = "2.2.0", features = [], default-features = false }
+odra = { version = "2.3.1" }
+odra-test = { version = "2.3.1", features = [], default-features = false }
+odra-build = { version = "2.3.1", features = [], default-features = false }
+odra-cli = { version = "2.3.1", features = [], default-features = false }
+odra-modules = { version = "2.3.1", features = [], default-features = false }
 
 [profile.release]
 codegen-units = 1

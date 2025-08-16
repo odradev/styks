@@ -58,7 +58,7 @@ impl From<TWAPError> for StyksPriceFeedError {
 }
 
 // --- Access Control Roles ---
-
+#[derive(Debug)]
 pub enum StyksPriceFeedRole {
     Admin,
     ConfigManager,

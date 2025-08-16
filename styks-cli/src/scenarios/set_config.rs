@@ -1,7 +1,6 @@
 use odra::host::HostEnv;
 use odra_cli::{
-    scenario::{Args, Error, Scenario, ScenarioMetadata},
-    CommandArg, ContractProvider, DeployedContractsContainer,
+    cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, CommandArg, ContractProvider, DeployedContractsContainer
 };
 use styks_contracts::styks_price_feed::{StyksPriceFeed, StyksPriceFeedConfig};
 
@@ -31,7 +30,7 @@ impl Scenario for SetConfig {
         };
 
         odra_cli::log(format!("Setting configuration."));
-        env.set_gas(5_000_000_000);
+        env.set_gas(cspr!(5));
         contract.set_config(config);
         Ok(())
     }

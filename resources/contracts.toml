@@ -1,5 +1,5 @@
-last_updated = "2025-08-07T14:19:56Z"
+last_updated = "2025-08-16T11:21:12Z"
 
 [[contracts]]
 name = "StyksPriceFeed"
-package_hash = "hash-70410407f6ddfbd2c94724ff2fa9bc9c1e570a0017dbbaae89b6856b5dae1b7a"
+package_hash = "hash-2879d6e927289197aab0101cc033f532fe22e4ab4686e44b5743cb1333031acc"
