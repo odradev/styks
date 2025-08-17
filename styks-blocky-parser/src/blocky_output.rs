@@ -18,7 +18,7 @@ pub struct BlockyOutput {
 impl BlockyOutput {
     pub fn try_from_file<P: AsRef<Path>>(path: P) -> Result<Self, DynError> {
         let text = fs::read_to_string(path)?;
-        let parsed: BlockyOutput = serde_json::from_str(&text)?;
+        let parsed: BlockyOutput = serde_json_wasm::from_str(&text)?;
         Ok(parsed)
     }
 
@@ -82,18 +82,6 @@ pub struct TransitiveClaims {
     pub hash_of_secrets: String,
 }
 
-impl TransitiveClaims {
-    pub fn parse_output_as_value(&self) -> Result<serde_json::Value, DynError> {
-        let v: serde_json::Value = serde_json::from_str(&self.output)?;
-        Ok(v)
-    }
-
-    pub fn parse_output_as_typed(&self) -> Result<FunctionOutput, DynError> {
-        let v: FunctionOutput = serde_json::from_str(&self.output)?;
-        Ok(v)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionOutput {
     pub success: bool,
@@ -106,8 +94,8 @@ pub struct FunctionOutputValue {
     pub market: String,
     pub coin_id: String,
     pub currency: String,
-    pub price: f64,
-    pub timestamp: String,
+    pub price: u64,
+    pub timestamp: u64,
 }
 
 pub struct TA {
@@ -190,7 +178,6 @@ impl TA {
     pub fn signature_bytes(&self) -> Vec<u8> {
         self.signature().to_vec()
     }
-
 
     pub fn data(&self) -> &[u8] {
         &self.data

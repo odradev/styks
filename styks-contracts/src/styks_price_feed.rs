@@ -173,6 +173,10 @@ impl StyksPriceFeed {
             .unwrap_or_revert_with(&self.env(), StyksPriceFeedError::ConfigNotSet)
     }
 
+    pub fn get_config_or_none(&self) -> Option<StyksPriceFeedConfig> {
+        self.config.get()
+    }
+
     pub fn get_current_twap_store(&self, id: &PriceFeedId) -> Vec<Option<Price>> {
         self.twap_store.get(id).unwrap_or_default()
     }

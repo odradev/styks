@@ -1,4 +1,4 @@
-tmp/
+blocky-guest/tmp/out.json
 target
 .DS_Store
 .env

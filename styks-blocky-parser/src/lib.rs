@@ -19,15 +19,15 @@ pub fn wasm_hash(wasm_bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-#[cfg(test)]
-fn block_output_for_tests() -> blocky_output::BlockyOutput {
+#[cfg(feature = "std")]
+pub fn block_output_for_tests() -> blocky_output::BlockyOutput {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let path = std::path::Path::new(manifest_dir).join("../resources/test/1_out.json");
     blocky_output::BlockyOutput::try_from_file(path).expect("Failed to load BlockyOutput")
 }
 
-#[cfg(test)]
-fn wasm_hash_for_tests() -> String {
+#[cfg(feature = "std")]
+pub fn wasm_hash_for_tests() -> String {
     let wasm = include_bytes!("../../resources/test/1_guest.wasm");
     wasm_hash(wasm)
 }
@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn test_wasm_hash() {
-        let expected_hash = "88b33f65cab461748c49de1edb5f81974dcc98a171d223c537b8a6869c348f3497daa7aba61654a5c4e1813171ed4238a079fac1f75d3c817bc152aa60d4c2e0";
+        let expected_hash = "baadaf829374304416a3c78a7c1118eb6784d3585c8cb5b18fa95c38cb8e4382fda8e149c4d05769d513af599445237dcc87d232da8f51251f0ad6dd1aff5b17";
         assert_eq!(wasm_hash_for_tests(), expected_hash);
     }
 }

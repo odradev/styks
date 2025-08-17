@@ -1,5 +1,5 @@
 #[cfg(not(feature = "std"))]
-use alloc::{string::{String, ToString}, vec::Vec, boxed::Box};
+use alloc::{format, string::{String, ToString}, vec::Vec, boxed::Box};
 
 use ethabi::{decode, ParamType, Token};
 use serde::Deserialize;
@@ -64,8 +64,8 @@ impl BlockyClaims {
     }
 
     pub fn output(&self) -> Result<GuestProgramOutputValue, BlockyClaimsError> {
-        let output = GuestProgramOutput::try_from_string(&self.output_str())
-            .map_err(|_| BlockyClaimsError::OutputJsonDecoding)?;
+        let output = GuestProgramOutput::try_from_string(&self.output_str())?;
+            
         if !output.success {
             return Err(BlockyClaimsError::OutputHasNoSuccessStatus);
         }
@@ -82,8 +82,9 @@ pub struct GuestProgramOutput {
 }
 
 impl GuestProgramOutput {
-    pub fn try_from_string(s: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(s)
+    pub fn try_from_string(s: &str) -> Result<Self, BlockyClaimsError> {
+        serde_json_wasm::from_str(s)
+            .map_err(|_| BlockyClaimsError::OutputJsonDecoding)
     }
 
     pub fn error_message(&self) -> &str {
@@ -96,10 +97,15 @@ pub struct GuestProgramOutputValue {
     pub market: String,
     pub coin_id: String,
     pub currency: String,
-    pub price: f64,
-    pub timestamp: String,
+    pub price: u64,
+    pub timestamp: u64,
 }
 
+impl GuestProgramOutputValue {
+    pub fn identifier(&self) -> String {
+        format!("{}_{}_{}", self.market, self.coin_id, self.currency)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -128,7 +134,8 @@ mod tests {
         assert_eq!(output.market, "Gate");
         assert_eq!(output.coin_id, "CSPR");
         assert_eq!(output.currency, "USD");
-        assert_eq!(output.price, 0.01067079);
-        assert_eq!(output.timestamp, "2025-08-16T12:37:06Z");
+        assert_eq!(output.price, 1056);
+        assert_eq!(output.timestamp, 1755463157);
+        assert_eq!(output.identifier(), "Gate_CSPR_USD");
     }
 }

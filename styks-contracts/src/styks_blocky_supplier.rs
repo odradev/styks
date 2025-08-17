@@ -1,7 +1,9 @@
-use odra::{casper_types::bytesrepr::Bytes, prelude::*};
+use odra::{casper_types::bytesrepr::Bytes, prelude::*, ContractRef};
 use odra_modules::access::{AccessControl, Role, DEFAULT_ADMIN_ROLE};
 use styks_blocky_parser::{blocky_claims::{BlockyClaims, BlockyClaimsError}, verify::VerificationError};
 use styks_core::{Price, PriceFeedId};
+
+use crate::styks_price_feed::StyksPriceFeedContractRef;
 
 // --- Errors ---
 
@@ -9,6 +11,7 @@ use styks_core::{Price, PriceFeedId};
 pub enum StyksBlockySupplerError {
     // Config errors.
     ConfigNotSet = 46000,
+    PriceFeedIdNotFound = 46001,
 
      // Role errors.
     NotAdminRole = 46100,
@@ -20,6 +23,7 @@ pub enum StyksBlockySupplerError {
     HashingError = 46202,
     BadSignature = 46203,
     BadWasmHash = 46204,
+    TimestampOutOfRange = 46205,
 
     // Claims errors.
     TADataDecoding = 46300,
@@ -80,11 +84,20 @@ pub struct StyksBlockySupplerConfig {
     pub wasm_hash: String,
     pub public_key: Bytes,
     pub coingecko_feed_ids: Vec<(String, PriceFeedId)>, // (coingecko_id, price_feed_id)
+    pub price_feed_address: Address,
+    pub timestamp_tolerance: u64,
 }
 
 impl StyksBlockySupplerConfig {
     pub fn public_key(&self) -> &[u8] {
         &self.public_key
+    }
+
+    pub fn price_feed_id(&self, coingecko_id: &str) -> Option<PriceFeedId> {
+        self.coingecko_feed_ids
+            .iter()
+            .find(|(id, _)| id == coingecko_id)
+            .map(|(_, feed_id)| feed_id.clone())
     }
 }
 
@@ -120,9 +133,6 @@ impl StyksBlockySupplier {
         // Make sure only ConfigManager can set the config.
         self.assert_config_manager(&self.env().caller());
 
-        // Validate the config.
-        // config.validate().unwrap_or_revert(&self.env());
-
         // Update the config.
         self.config.set(config);
     }
@@ -131,6 +141,10 @@ impl StyksBlockySupplier {
         self.config
             .get()
             .unwrap_or_revert_with(&self.env(), StyksBlockySupplerError::ConfigNotSet)
+    }
+
+    pub fn get_config_or_none(&self) -> Option<StyksBlockySupplerConfig> {
+        self.config.get()
     }
 
     /// Verifies the signature against the data.
@@ -158,6 +172,7 @@ impl StyksBlockySupplier {
             self.env().revert(StyksBlockySupplerError::BadWasmHash);
         }
 
+        // Extract the output.
         let output = match claims.output() {
             Ok(output) => output,
             Err(error) => {
@@ -165,12 +180,26 @@ impl StyksBlockySupplier {
             }
         };
 
-        let price = output.price;
-        let price: Price = (price * 100_000.0) as u64;
+        // Verify the timestamp.
+        self.assert_timestamp_in_range(output.timestamp, config.timestamp_tolerance);
 
-        if price == 0 {
-            self.env().revert(StyksBlockySupplerError::OutputHasNoSuccessStatus);
-        }
+        // Load the price feed.
+        let mut feed = StyksPriceFeedContractRef::new(
+            self.env(),
+            config.price_feed_address,
+        );
+
+        // Load the price.
+        let price = Price::from(output.price);
+
+        // Load the PriceFeedId.
+        let price_feed_id = match config.price_feed_id(&output.identifier()) {
+            Some(id) => PriceFeedId::from(id),
+            None => self.env().revert(StyksBlockySupplerError::PriceFeedIdNotFound)
+        };
+
+        // Report the price to the feed.
+        feed.add_to_feed(vec![(price_feed_id, price)]);
     }
 }
 
@@ -206,6 +235,13 @@ impl StyksBlockySupplier {
             self.env().revert(StyksBlockySupplerError::from(error));
         }
     }
+
+    fn assert_timestamp_in_range(&self, reported: u64, tolerance: u64) {
+        let current_time = self.env().get_block_time_secs();
+        if reported < current_time.saturating_sub(tolerance) || reported > current_time + tolerance {
+            self.env().revert(StyksBlockySupplerError::TimestampOutOfRange);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -230,12 +266,11 @@ mod tests {
         let wasm_bytes = include_bytes!("../../resources/test/1_guest.wasm");
         let wasm_hash = styks_blocky_parser::wasm_hash(wasm_bytes);
 
-
         // Deploy StyksPriceFeed contract.
         let mut feed = StyksPriceFeed::deploy(&env, NoArgs);
         let feed_config = StyksPriceFeedConfig {
             heartbeat_interval: 100,
-            heartbeat_tolerance: 10,
+            heartbeat_tolerance: 45,
             twap_window: 1,
             twap_tolerance: 0,
             price_feed_ids: vec![String::from("CSPRUSD")],
@@ -249,14 +284,16 @@ mod tests {
             wasm_hash,
             public_key: Bytes::from(blocky_output.public_key_bytes()),
             coingecko_feed_ids: vec![
-                (String::from("casper_network"), String::from("CSPRUSD"))
+                (String::from("Gate_CSPR_USD"), String::from("CSPRUSD"))
             ],
+            price_feed_address: feed.address(),
+            timestamp_tolerance: 1, // 1 sec tolerance
         };
         supplier.grant_role(&StyksBlockySupplerRole::ConfigManager.role_id(), &admin);
         supplier.set_config(supplier_config.clone());
 
         // Allow StyksBlockySupplier to add prices to StyksPriceFeed.
-        let role = StyksPriceFeedRole::ConfigManager.role_id();
+        let role = StyksPriceFeedRole::PriceSupplier.role_id();
         feed.grant_role(&role, &supplier.address());
 
         (env, feed, supplier, supplier_config, blocky_output)
@@ -271,8 +308,9 @@ mod tests {
         assert_eq!(supplier.get_config(), supplier_config);
 
         // Assuming the test starts at block time 1000.
-        env.advance_block_time(100 * 1000);
-        assert_eq!(100, env.block_time_secs());
+        let timestamp = 1755463157;
+        env.advance_block_time(timestamp * 1000);
+        assert_eq!(timestamp, env.block_time_secs());
         
         // Price should be empty initially.
         assert_eq!(feed.get_twap_price(&id), None);
@@ -289,6 +327,6 @@ mod tests {
 
         // Check the reported price.
         let price = feed.get_twap_price(&id);
-        
+        assert_eq!(price, Some(1056));
     }
 }

@@ -26,8 +26,8 @@ type Price struct {
 	Market    string    `json:"market"`
 	CoinID    string    `json:"coin_id"`
 	Currency  string    `json:"currency"`
-	Price     float64   `json:"price"`
-	Timestamp time.Time `json:"timestamp"`
+	Price     uint64    `json:"price"`
+	Timestamp int64    `json:"timestamp"`
 }
 
 func getPriceFromCoinGecko(market string, coinID string, apiKey string) (Price, error) {
@@ -60,12 +60,15 @@ func getPriceFromCoinGecko(market string, coinID string, apiKey string) (Price, 
 
 	for _, ticker := range coinGeckoResponse.Tickers {
 		if ticker.Market.Name == market {
+			price := ticker.ConvertedLast.USD * 100000.0 // Convert to a more suitable unit if needed.
+			priceUpperUint64 := uint64(price) // Convert to uint64 for consistency.
+
 			return Price{
 				Market:    ticker.Market.Name,
 				CoinID:    ticker.Base,
 				Currency:  "USD",
-				Price:     ticker.ConvertedLast.USD,
-				Timestamp: ticker.Timestamp,
+				Price:     priceUpperUint64,
+				Timestamp: ticker.Timestamp.Unix(),
 			}, nil
 		}
 	}

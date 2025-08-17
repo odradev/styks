@@ -42,6 +42,12 @@ run: check build
 	@echo "Output:"
 	@jq -r '.transitive_attested_function_call.claims.output | @base64d | fromjson' tmp/out.json
 
+run-no-build:
+	@echo "Running WASM module without building..."
+	@cat fn-call.json | bky-as attest-fn-call >tmp/out.json
+	@echo "Output:"
+	@jq -r '.transitive_attested_function_call.claims.output | @base64d | fromjson' tmp/out.json
+
 .PHONY: clean
 clean:
 	@rm -rf tmp

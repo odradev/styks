@@ -1,9 +1,12 @@
-use odra::host::HostEnv;
+use core::panic;
+use std::path::Path;
+
+use odra::{casper_types::bytesrepr::Bytes, host::HostEnv};
 use odra_cli::{
-    scenario::{Args, Error, Scenario, ScenarioMetadata},
-    CommandArg, ContractProvider, DeployedContractsContainer,
+    cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, CommandArg, ContractProvider, DeployedContractsContainer
 };
-use styks_contracts::styks_price_feed::{StyksPriceFeed, StyksPriceFeedHostRef};
+use styks_blocky_parser::{blocky_claims::BlockyClaims, blocky_output::BlockyOutput};
+use styks_contracts::{styks_blocky_supplier::{StyksBlockySupplier, StyksBlockySupplierHostRef}, styks_price_feed::{StyksPriceFeed, StyksPriceFeedHostRef}};
 use styks_core::heartbeat::Heartbeat;
 
 
@@ -26,44 +29,32 @@ impl Scenario for UpdatePrice {
     ) -> core::result::Result<(), Error> {
         let mut updater = Updater::new(env.clone(), container)?;
         updater.start();
-
-        // // Load data.
-        // let price_feed_id = String::from("CSPRUSD");
-        // let coingecko_client = CoinGeckoClient::new();
-        // let price_cg = coingecko_client.get_price(&price_feed_id).unwrap();
-        // let price = (price_cg * 100_000.0) as u64;
-        // let current_time = env.block_time_secs();
-        // odra_cli::log(format!(
-        //     "Updating price feed {} with price: ${} and timestamp: {}.",
-        //     price_feed_id, price_cg, current_time
-        // ));
-
-        // // Sent price record to the contract.
-        // let mut contract = container.contract_ref::<StyksPriceFeed>(&env)?;
-        // env.set_gas(2_500_000_000);
-        // contract.add_to_feed(vec![(price_feed_id, price)]);
-
-        // odra_cli::log("Price updated successfully.");
+        // updater.report_price();
         Ok(())
     }
 }
 
 pub struct Updater {
     env: HostEnv,
-    contract: StyksPriceFeedHostRef,
+    feed_contract: StyksPriceFeedHostRef,
+    supplier_contract: StyksBlockySupplierHostRef,
     coingecko_client: CoinGeckoClient,
     price_feed_id: String,
+    use_blocky_supplier: bool,
 }
 
 impl Updater {
     pub fn new(env: HostEnv, container: &DeployedContractsContainer) -> Result<Self, Error> {
-        let contract = container.contract_ref::<StyksPriceFeed>(&env)?;
+        let feed_contract = container.contract_ref::<StyksPriceFeed>(&env)?;
+        let supplier_contract = container.contract_ref::<StyksBlockySupplier>(&env)?;
         let coingecko_client = CoinGeckoClient::new();
         Ok(Updater {
             env,
-            contract,
+            feed_contract,
+            supplier_contract,
             coingecko_client,
             price_feed_id: String::from("CSPRUSD"),
+            use_blocky_supplier: true
         })
     }
 
@@ -71,13 +62,13 @@ impl Updater {
         odra_cli::log("[x] Starting price update loop.");
 
         // Fetch the current configuration from the contract.        
-        let config = self.contract.get_config();
+        let config = self.feed_contract.get_config();
         odra_cli::log(format!("Current config: {:?}", config));
 
         loop {
             odra_cli::log("[x] Starting loop.");
             // Load last heartbeat time.
-            let last_heartbeat = self.contract.get_last_heartbeat().unwrap_or_default();
+            let last_heartbeat = self.feed_contract.get_last_heartbeat().unwrap_or_default();
             odra_cli::log(format!("Last heartbeat time: {:?}", last_heartbeat));
 
             // Load current time.
@@ -103,18 +94,7 @@ impl Updater {
                 if current_window.middle == last_heartbeat {
                     odra_cli::log("Already updated price in this heartbeat window.");
                 } else {
-                    let price = self.get_realtime_price();
-                    odra_cli::log(format!(
-                        "Updating price feed {} with price: ${} and timestamp: {}.",
-                        self.price_feed_id, price, current_time
-                    ));
-                    // Send price record to the contract.
-                    self.env.set_gas(2_500_000_000);
-                    let result = self.contract.try_add_to_feed(vec![(self.price_feed_id.clone(), price)]);
-                    match result {
-                        Ok(_) => odra_cli::log("Price updated successfully."),
-                        Err(e) => odra_cli::log(format!("Failed to update price: {:?}.", e)),
-                    }
+                    self.report_price();
                 }    
             }
 
@@ -146,9 +126,86 @@ impl Updater {
         ));
         price
     }
+
+    pub fn report_price(&mut self) {
+        if self.use_blocky_supplier {
+            odra_cli::log("Reporting price via Blocky Supplier.");
+            self.report_price_via_blocky_supplier();
+        } else {
+            odra_cli::log("Reporting price directly to the feed.");
+            self.report_price_direct_to_feed();
+        }
+    }
+
+    pub fn report_price_direct_to_feed(
+        &mut self,
+    ) {
+        let current_time = current_timestamp_secs();
+        let price = self.get_realtime_price();
+        odra_cli::log(format!(
+            "Updating price feed {} with price: ${} and timestamp: {}.",
+            self.price_feed_id, price, current_time
+        ));
+        // Send price record to the contract.
+        self.env.set_gas(2_500_000_000);
+        let result = self.feed_contract.try_add_to_feed(vec![(self.price_feed_id.clone(), price)]);
+        match result {
+            Ok(_) => odra_cli::log("Price updated successfully."),
+            Err(e) => odra_cli::log(format!("Failed to update price: {:?}.", e)),
+        }
+    }
+
+    pub fn report_price_via_blocky_supplier(&mut self) {
+        // Call `make run-no-build` in the blocky-guest directory.
+        odra_cli::log("Calling Blocky service to report price.");
+        self.make_blocky_call();
+        let output = self.read_blocky_output();
+        let ta = output.ta();
+        let signature = ta.signature_bytes();
+        let data = ta.data();
+        let claims = BlockyClaims::decode_fn_call_claims(&data).unwrap();
+        let output_value = claims.output().unwrap();
+        let price = output_value.price;
+        let timestamp = output_value.timestamp;
+        odra_cli::log(format!(
+            "Updating price feed {} with price: ${} and timestamp: {}.",
+            self.price_feed_id, price, timestamp
+        ));
+
+        self.env.set_gas(cspr!(10));
+        let result = self.supplier_contract.try_report_signed_prices(
+            Bytes::from(signature),
+            Bytes::from(data),
+        );
+        match result {
+            Ok(_) => odra_cli::log("Price updated successfully."),
+            Err(e) => odra_cli::log(format!("Failed to update price: {:?}.", e)),
+        }
+    }
+
+    pub fn make_blocky_call(&self) {
+        let output = std::process::Command::new("make")
+            .arg("run-no-build")
+            .current_dir("blocky-guest")
+            .output()
+            .unwrap();
+
+        if !output.status.success() {
+            let error_message = String::from_utf8_lossy(&output.stderr);
+            panic!("Failed to call Blocky service: {}", error_message);
+        }
+    }
+
+    pub fn read_blocky_output(&self) -> BlockyOutput {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let path = Path::new(manifest_dir).join("../blocky-guest/tmp/out.json");
+        BlockyOutput::try_from_file(path).unwrap()
+    }
+        
 }
 
 // --- Coingecko clinet ---
+
 pub struct CoinGeckoClient {
     api_key: String,
 }

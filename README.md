@@ -8,6 +8,7 @@ Styks is deployed on the Casper Testnet.
 
 - Status: <span style="color: #b5e853"><b>Active</b></span>.
 - <span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: [testnet.cspr.live/2879...1acc](https://testnet.cspr.live/contract-package/2879d6e927289197aab0101cc033f532fe22e4ab4686e44b5743cb1333031acc).
+- <span style="color: #b5e853"><b>StyksBlockySupplier</b></span> contract: [testnet.cspr.live/fe8b...c5a9](https://testnet.cspr.live/contract-package/fe8b1829844276b21e8d577d525808ed36cc9e12c06b5acfb897204e5b49c5a9).
 - Available price feed: <span style="color: #b5e853"><b>CSPRUSD</b></span>.
 - Heartbeat interval: <span style="color: #b5e853"><b>10 minutes</b></span>.
 
