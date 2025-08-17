@@ -29,7 +29,7 @@ impl Scenario for SetConfig {
             price_feed_ids: vec![String::from("CSPRUSD")],
         };
 
-        odra_cli::log(format!("Setting configuration."));
+        odra_cli::log("Setting configuration.");
         env.set_gas(cspr!(5));
         contract.set_config(config);
         Ok(())

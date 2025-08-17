@@ -58,6 +58,7 @@ impl From<TWAPError> for StyksPriceFeedError {
 }
 
 // --- Access Control Roles ---
+
 #[derive(Debug)]
 pub enum StyksPriceFeedRole {
     Admin,
@@ -125,7 +126,7 @@ impl StyksPriceFeedConfig {
     }
 }
 
-// --- Styks Price Feed Smart Contract ---
+// --- StyksPriceFeed Contract ---
 
 #[odra::module]
 pub struct StyksPriceFeed {

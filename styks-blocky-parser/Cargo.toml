@@ -1,0 +1,18 @@
+[package]
+name = "styks-blocky-parser"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+k256 = { version = "0.13.4", features = ["ecdsa", "sha256", "alloc"], default-features = false }
+sha3 = { version = "0.10.8", default-features = false }
+ethabi = { version = "18.0.0", default-features = false }
+serde = { version = "1.0", default-features = false }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+
+base64 = { version = "0.22.1", optional = true }
+hex = { version = "0.4", default-features = false, optional = true }
+
+[features]
+default = ["std"]
+std = ["dep:base64", "dep:hex" ]

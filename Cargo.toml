@@ -1,7 +1,9 @@
 [workspace]
 members = [
+    "styks-blocky-parser",
     "styks-cli",
-    "styks-contracts", "styks-core",
+    "styks-contracts",
+    "styks-core",
 ]
 resolver = "2"
 

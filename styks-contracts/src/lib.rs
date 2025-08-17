@@ -4,4 +4,4 @@
 extern crate alloc;
 
 pub mod styks_price_feed;
-
+pub mod styks_blocky_supplier;
