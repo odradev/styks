@@ -10,9 +10,15 @@ Styks is deployed on the Casper Testnet.
 - <span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: [testnet.cspr.live/2879...1acc](https://testnet.cspr.live/contract-package/2879d6e927289197aab0101cc033f532fe22e4ab4686e44b5743cb1333031acc).
 - <span style="color: #b5e853"><b>StyksBlockySupplier</b></span> contract: [testnet.cspr.live/fe8b...c5a9](https://testnet.cspr.live/contract-package/fe8b1829844276b21e8d577d525808ed36cc9e12c06b5acfb897204e5b49c5a9).
 - Available price feed: <span style="color: #b5e853"><b>CSPRUSD</b></span>.
-- Heartbeat interval: <span style="color: #b5e853"><b>10 minutes</b></span>.
+- Current heartbeat interval: <span style="color: #b5e853"><b>30 minutes</b></span>.
 
-<span style="color: #b5e853">Test it!</span><br/>
+
+Recent changes:
+
+- 2025/08/18 - Heartbeat interval changed to 30 minutes.
+- 2025/08/17 - `StyksBlockySupplier` deployed to the Casper Testnet.
+- 2025/08/07 - `StyksPriceFeed` deployed to the Casper Testnet.
+
 
 ---
 
@@ -66,10 +72,10 @@ Styks architecture consists of four main components:
 
 - Blocky Server -  for fetching the latest, signed prices from the CoinGecko
   API.
-- Onchain smart contracts - `BlockyPriceFeed` and `StyksPriceFeed` for storing
+- Onchain smart contracts - `StyksBlockySupplier` and `StyksPriceFeed` for storing
   and operating the prices onchain.
 - `PriceProducer` - offchain component, that is responsible for fetching the
-  latest prices from the Blocky Server and posting them to the `BlockyPriceFeed`
+  latest prices from the Blocky Server and posting them to the `StyksBlockySupplier`
   contract.
 - `StyksAdmin` - admin account, that is responsible for maintaining the correct configuration of smart contracts.
 
@@ -88,7 +94,7 @@ flowchart TB
 
     subgraph Casper Blockchain
       OnchainConsumer
-      BlockyPriceFeed
+      StyksBlockySupplier
       StyksPriceFeed
     end
 
@@ -101,12 +107,12 @@ flowchart TB
     BlockyAPI -->|"get_prices(symbols)"| CoinGecko
     CoinGecko -->|"prices"| BlockyAPI
     BlockyAPI -->|"prices"| PriceProducer
-    PriceProducer -->|"post_prices(signed_prices)"| BlockyPriceFeed
-    BlockyPriceFeed -->|"post_prices(prices)"| StyksPriceFeed
+    PriceProducer -->|"post_prices(signed_prices)"| StyksBlockySupplier
+    StyksBlockySupplier -->|"post_prices(prices)"| StyksPriceFeed
 
     %% Define price feeds.
     StyksAdmin -->|"configure"| StyksPriceFeed
-    StyksAdmin -->|"configure"| BlockyPriceFeed
+    StyksAdmin -->|"configure"| StyksBlockySupplier
 ```
 
 ## Blocky
@@ -221,36 +227,35 @@ Configuration of the contract:
 - `twap_tolerance`,
 - `price_feed_ids` - list of enabled price feeds.
 
-## BlockyPriceFeed Smart Contract
+## StyksBlockySupplier Smart Contract
 
-The `BlockyPriceFeed` smart contract is a bridge between the Blocky server and
+The `StyksBlockySupplier` smart contract is a bridge between the Blocky server and
 the `StyksPriceFeed` smart contract. It is responsible for receiving the signed
-prices from the `PriceProducer` and posting them to the `StyksPriceFeed`.
+prices from the `PriceProducer` and posting them to the `StyksPriceFeed` after
+verifying authenticity and freshness.
 
 It is configured as follows:
 
-- `blocky_wasm_hash` - hash of the Blocky's guest program (a WASM file).
-- `blocky_signing_key` - public key of the Blocky server, used to verify the
-  signature of the prices.
-- `styks_price_feed_address` - address of the `StyksPriceFeed` contract,
+- `wasm_hash` - hash of the Blocky's guest program (a WASM file).
+- `public_key` - public key used to verify the signature of the prices.
+- `price_feed_address` - address of the `StyksPriceFeed` contract,
   where the prices are posted.
-- `price_feed_id_metadata` - key-value map of the price feed ids and their
-  associated metadata, such as CoinGecko symbol. Example:
-    - (`CSPRUSD`, `CoinGecko`) -> `casper-network`,
-    - (`BTCUSD`, `CoinGecko`) -> `bitcoin`.
+- `coingecko_feed_ids` - list of mappings between Blocky/CoinGecko identifiers and
+  on-chain PriceFeedIds. Example: `("Gate_CSPR_USD", "CSPRUSD")`.
+- `timestamp_tolerance` - allowed drift (in seconds) between the reported timestamp
+  and the current on-chain time.
 
-It is also follows the security roles pattern:
+Security roles:
 
 - `AdminRole` - manages roles of other accounts,
-- `ConfigManagerRole` - manages configuration of the contract,
-- `PriceSupplierRole` - supplies the output of the blocky server to the
-  contract.
+- `ConfigManagerRole` - manages configuration of the contract.
 
-`PriceProducer` must have the `PriceSupplierRole` role assigned in order to be
-able to post the prices.
-  
-The `BlockyPriceFeed` contract must have the `PriceSupplierRole` role assigned
-in the `StyksPriceFeed` contract in order to be able to post the prices. 
+Note:
+- Anyone can submit signed data via `report_signed_prices`, but only data that
+  is correctly signed with `public_key`, produced by the expected `wasm_hash`,
+  and whose timestamp is within `timestamp_tolerance` will be forwarded to the feed.
+- The `StyksBlockySupplier` contract must have the `PriceSupplierRole` assigned
+  in the `StyksPriceFeed` contract in order to be able to post the prices there.
 
 ## Price Update Procedure
 
@@ -262,45 +267,45 @@ with the latest prices.
 sequenceDiagram
     participant PriceProducer
     participant BlockyAPI
-    participant BlockyPriceFeed
+    participant StyksBlockySupplier
     participant StyksPriceFeed
 
     PriceProducer->>BlockyAPI: get_prices(symbols)
     BlockyAPI-->>PriceProducer: signed_prices
-    PriceProducer->>BlockyPriceFeed: post_prices(signed_prices)
-    BlockyPriceFeed->>BlockyPriceFeed: validate input
-    BlockyPriceFeed->>StyksPriceFeed: post_prices(prices)
+    PriceProducer->>StyksBlockySupplier: post_prices(signed_prices)
+    StyksBlockySupplier->>StyksBlockySupplier: validate signature, wasm hash, timestamp, mapping
+    StyksBlockySupplier->>StyksPriceFeed: post_prices(prices)
 
     StyksPriceFeed->>StyksPriceFeed: validate input
-    StyksPriceFeed-->>BlockyPriceFeed: prices_validated
-    BlockyPriceFeed-->>PriceProducer: prices_posted
+    StyksPriceFeed-->>StyksBlockySupplier: prices_validated
+    StyksBlockySupplier-->>PriceProducer: prices_posted
 ```
 
 ### Step 1: `PriceProducer` offchain sequence
 
 - `PriceProducer` checks in the `StyksPriceFeed` when is the next heartbeat.
 - If the time is right, it starts the update procedure.
-- `PriceProducer` load list of active `PriceFeedId`s and their `CoinGecko`
-  symbols from the `BlockyPriceFeed` contract.
+- `PriceProducer` loads list of active `(CoinGecko identifier -> PriceFeedId)`
+  mappings from the `StyksBlockySupplier` contract configuration.
 - `PriceProducer` calls the `BlockyAPI` with the list of symbols to
   fetch the latest prices. It uses the guest program that matches the
-  `blocky_wasm_hash` configured in the `BlockyPriceFeed` contract.
+  `wasm_hash` configured in the `StyksBlockySupplier` contract.
 - `BlockyAPI` responds with the signed prices.
-- `PriceProducer` posts the signed prices to the `BlockyPriceFeed` contract.
+- `PriceProducer` posts the signed prices to the `StyksBlockySupplier` contract.
 
-### Step 2: `BlockyPriceFeed` onchain sequence
+### Step 2: `StyksBlockySupplier` onchain sequence
 
-- `BlockyPriceFeed` checks if the caller has the `PriceSupplierRole` role.
-- `BlockyPriceFeed` verifies data:
-  - if the signature matches the `blocky_signing_key`,
-  - if prices are valid,
-  - if `blocky_wasm_hash` matches the one configured in the contract.
+- `StyksBlockySupplier` verifies input:
+  - the signature matches the configured `public_key`,
+  - the guest program hash matches `wasm_hash`,
+  - the reported timestamp is within `timestamp_tolerance` of current time,
+  - the identifier can be mapped to a configured `PriceFeedId`.
 - If all checks pass, it posts raw prices in the format of list(`PriceFeedId` ->
   price) to the `StyksPriceFeed` contract.
 
 ### Step 3: `StyksPriceFeed` onchain sequence
 
-- `StyksPriceFeed` checks if the caller has the `PriceSupplierRole` role.
+- `StyksPriceFeed` checks if the caller (the `StyksBlockySupplier` contract) has the `PriceSupplierRole` role.
 - `StyksPriceFeed` for each price in the list checks the following:
   - the `PriceFeedId` is enabled,
   - the price is valid,
@@ -319,7 +324,7 @@ features that we are considering to implement.
 
 In the above model, there is only one `PriceProducer` that is responsible for
 fetching the prices from the `BlockyAPI` and posting them to the
-`BlockyPriceFeed` contract. To make system more resilient, we must allow
+`StyksBlockySupplier` contract. To make system more resilient, we must allow
 multiple `PriceProducers` to work in parallel.
 
 We would like to introduce a token-based staking mechanism, that would allow

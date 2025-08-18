@@ -147,7 +147,7 @@ impl Updater {
             self.price_feed_id, price, current_time
         ));
         // Send price record to the contract.
-        self.env.set_gas(2_500_000_000);
+        self.env.set_gas(cspr!(2.5));
         let result = self.feed_contract.try_add_to_feed(vec![(self.price_feed_id.clone(), price)]);
         match result {
             Ok(_) => odra_cli::log("Price updated successfully."),
@@ -172,7 +172,7 @@ impl Updater {
             self.price_feed_id, price, timestamp
         ));
 
-        self.env.set_gas(cspr!(10));
+        self.env.set_gas(cspr!(3.5));
         let result = self.supplier_contract.try_report_signed_prices(
             Bytes::from(signature),
             Bytes::from(data),

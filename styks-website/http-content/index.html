@@ -46,9 +46,14 @@ mermaid.initialize({
 <li><span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: <a href="https://testnet.cspr.live/contract-package/2879d6e927289197aab0101cc033f532fe22e4ab4686e44b5743cb1333031acc" rel="noopener noreferrer" target="_blank">testnet.cspr.live/2879...1acc</a>.</li>
 <li><span style="color: #b5e853"><b>StyksBlockySupplier</b></span> contract: <a href="https://testnet.cspr.live/contract-package/fe8b1829844276b21e8d577d525808ed36cc9e12c06b5acfb897204e5b49c5a9" rel="noopener noreferrer" target="_blank">testnet.cspr.live/fe8b...c5a9</a>.</li>
 <li>Available price feed: <span style="color: #b5e853"><b>CSPRUSD</b></span>.</li>
-<li>Heartbeat interval: <span style="color: #b5e853"><b>10 minutes</b></span>.</li>
+<li>Current heartbeat interval: <span style="color: #b5e853"><b>30 minutes</b></span>.</li>
 </ul>
-<p><span style="color: #b5e853">Test it!</span><br/></p>
+<p>Recent changes:</p>
+<ul>
+<li>2025/08/18 - Heartbeat interval changed to 30 minutes.</li>
+<li>2025/08/17 - <code class="highlighter-rouge">StyksBlockySupplier</code> deployed to the Casper Testnet.</li>
+<li>2025/08/07 - <code class="highlighter-rouge">StyksPriceFeed</code> deployed to the Casper Testnet.</li>
+</ul>
 <hr/>
 <p>Below you can find detailed description of the Styks project.</p>
 <div class="toc">
@@ -64,10 +69,10 @@ mermaid.initialize({
 <li><a href="#time-weighted-average-price-twap">Time Weighted Average Price (TWAP)</a></li>
 <li><a href="#price-feed-id">Price Feed Id</a></li>
 <li><a href="#stykspricefeed-smart-contract">StyksPriceFeed Smart Contract</a></li>
-<li><a href="#blockypricefeed-smart-contract">BlockyPriceFeed Smart Contract</a></li>
+<li><a href="#styksblockysupplier-smart-contract">StyksBlockySupplier Smart Contract</a></li>
 <li><a href="#price-update-procedure">Price Update Procedure</a><ul>
 <li><a href="#step-1-priceproducer-offchain-sequence">Step 1: PriceProducer offchain sequence</a></li>
-<li><a href="#step-2-blockypricefeed-onchain-sequence">Step 2: BlockyPriceFeed onchain sequence</a></li>
+<li><a href="#step-2-styksblockysupplier-onchain-sequence">Step 2: StyksBlockySupplier onchain sequence</a></li>
 <li><a href="#step-3-stykspricefeed-onchain-sequence">Step 3: StyksPriceFeed onchain sequence</a></li>
 </ul>
 </li>
@@ -113,10 +118,10 @@ let price: Option&lt;u64&gt; = styks.get_twap_price(String::from("CSPRUSD"));
 <ul>
 <li>Blocky Server -  for fetching the latest, signed prices from the CoinGecko
   API.</li>
-<li>Onchain smart contracts - <code class="highlighter-rouge">BlockyPriceFeed</code> and <code class="highlighter-rouge">StyksPriceFeed</code> for storing
+<li>Onchain smart contracts - <code class="highlighter-rouge">StyksBlockySupplier</code> and <code class="highlighter-rouge">StyksPriceFeed</code> for storing
   and operating the prices onchain.</li>
 <li><code class="highlighter-rouge">PriceProducer</code> - offchain component, that is responsible for fetching the
-  latest prices from the Blocky Server and posting them to the <code class="highlighter-rouge">BlockyPriceFeed</code>
+  latest prices from the Blocky Server and posting them to the <code class="highlighter-rouge">StyksBlockySupplier</code>
   contract.</li>
 <li><code class="highlighter-rouge">StyksAdmin</code> - admin account, that is responsible for maintaining the correct configuration of smart contracts.</li>
 </ul>
@@ -134,7 +139,7 @@ flowchart TB
 
     subgraph Casper Blockchain
       OnchainConsumer
-      BlockyPriceFeed
+      StyksBlockySupplier
       StyksPriceFeed
     end
 
@@ -147,12 +152,12 @@ flowchart TB
     BlockyAPI --&gt;|"get_prices(symbols)"| CoinGecko
     CoinGecko --&gt;|"prices"| BlockyAPI
     BlockyAPI --&gt;|"prices"| PriceProducer
-    PriceProducer --&gt;|"post_prices(signed_prices)"| BlockyPriceFeed
-    BlockyPriceFeed --&gt;|"post_prices(prices)"| StyksPriceFeed
+    PriceProducer --&gt;|"post_prices(signed_prices)"| StyksBlockySupplier
+    StyksBlockySupplier --&gt;|"post_prices(prices)"| StyksPriceFeed
 
     %% Define price feeds.
     StyksAdmin --&gt;|"configure"| StyksPriceFeed
-    StyksAdmin --&gt;|"configure"| BlockyPriceFeed
+    StyksAdmin --&gt;|"configure"| StyksBlockySupplier
 </div>
 <h2 id="blocky">Blocky</h2>
 <p>Styks leverages <a href="https://blocky-docs.redocly.app/" rel="noopener noreferrer" target="_blank">Blocky</a>, a trusted execution
@@ -247,35 +252,33 @@ of the missed heartbeats or not being configured.</p>
 <li><code class="highlighter-rouge">twap_tolerance</code>,</li>
 <li><code class="highlighter-rouge">price_feed_ids</code> - list of enabled price feeds.</li>
 </ul>
-<h2 id="blockypricefeed-smart-contract">BlockyPriceFeed Smart Contract</h2>
-<p>The <code class="highlighter-rouge">BlockyPriceFeed</code> smart contract is a bridge between the Blocky server and
+<h2 id="styksblockysupplier-smart-contract">StyksBlockySupplier Smart Contract</h2>
+<p>The <code class="highlighter-rouge">StyksBlockySupplier</code> smart contract is a bridge between the Blocky server and
 the <code class="highlighter-rouge">StyksPriceFeed</code> smart contract. It is responsible for receiving the signed
-prices from the <code class="highlighter-rouge">PriceProducer</code> and posting them to the <code class="highlighter-rouge">StyksPriceFeed</code>.</p>
+prices from the <code class="highlighter-rouge">PriceProducer</code> and posting them to the <code class="highlighter-rouge">StyksPriceFeed</code> after
+verifying authenticity and freshness.</p>
 <p>It is configured as follows:</p>
 <ul>
-<li><code class="highlighter-rouge">blocky_wasm_hash</code> - hash of the Blocky's guest program (a WASM file).</li>
-<li><code class="highlighter-rouge">blocky_signing_key</code> - public key of the Blocky server, used to verify the
-  signature of the prices.</li>
-<li><code class="highlighter-rouge">styks_price_feed_address</code> - address of the <code class="highlighter-rouge">StyksPriceFeed</code> contract,
+<li><code class="highlighter-rouge">wasm_hash</code> - hash of the Blocky's guest program (a WASM file).</li>
+<li><code class="highlighter-rouge">public_key</code> - public key used to verify the signature of the prices.</li>
+<li><code class="highlighter-rouge">price_feed_address</code> - address of the <code class="highlighter-rouge">StyksPriceFeed</code> contract,
   where the prices are posted.</li>
-<li><code class="highlighter-rouge">price_feed_id_metadata</code> - key-value map of the price feed ids and their
-  associated metadata, such as CoinGecko symbol. Example:<ul>
-<li>(<code class="highlighter-rouge">CSPRUSD</code>, <code class="highlighter-rouge">CoinGecko</code>) -&gt; <code class="highlighter-rouge">casper-network</code>,</li>
-<li>(<code class="highlighter-rouge">BTCUSD</code>, <code class="highlighter-rouge">CoinGecko</code>) -&gt; <code class="highlighter-rouge">bitcoin</code>.</li>
+<li><code class="highlighter-rouge">coingecko_feed_ids</code> - list of mappings between Blocky/CoinGecko identifiers and
+  on-chain PriceFeedIds. Example: <code class="highlighter-rouge">("Gate_CSPR_USD", "CSPRUSD")</code>.</li>
+<li><code class="highlighter-rouge">timestamp_tolerance</code> - allowed drift (in seconds) between the reported timestamp
+  and the current on-chain time.</li>
 </ul>
-</li>
-</ul>
-<p>It is also follows the security roles pattern:</p>
+<p>Security roles:</p>
 <ul>
 <li><code class="highlighter-rouge">AdminRole</code> - manages roles of other accounts,</li>
-<li><code class="highlighter-rouge">ConfigManagerRole</code> - manages configuration of the contract,</li>
-<li><code class="highlighter-rouge">PriceSupplierRole</code> - supplies the output of the blocky server to the
-  contract.</li>
+<li><code class="highlighter-rouge">ConfigManagerRole</code> - manages configuration of the contract.</li>
 </ul>
-<p><code class="highlighter-rouge">PriceProducer</code> must have the <code class="highlighter-rouge">PriceSupplierRole</code> role assigned in order to be
-able to post the prices.</p>
-<p>The <code class="highlighter-rouge">BlockyPriceFeed</code> contract must have the <code class="highlighter-rouge">PriceSupplierRole</code> role assigned
-in the <code class="highlighter-rouge">StyksPriceFeed</code> contract in order to be able to post the prices. </p>
+<p>Note:
+- Anyone can submit signed data via <code class="highlighter-rouge">report_signed_prices</code>, but only data that
+  is correctly signed with <code class="highlighter-rouge">public_key</code>, produced by the expected <code class="highlighter-rouge">wasm_hash</code>,
+  and whose timestamp is within <code class="highlighter-rouge">timestamp_tolerance</code> will be forwarded to the feed.
+- The <code class="highlighter-rouge">StyksBlockySupplier</code> contract must have the <code class="highlighter-rouge">PriceSupplierRole</code> assigned
+  in the <code class="highlighter-rouge">StyksPriceFeed</code> contract in order to be able to post the prices there.</p>
 <h2 id="price-update-procedure">Price Update Procedure</h2>
 <p>Below is the exact sequence of actions that are taken to update the price feed
 with the latest prices.</p>
@@ -283,44 +286,44 @@ with the latest prices.</p>
 sequenceDiagram
     participant PriceProducer
     participant BlockyAPI
-    participant BlockyPriceFeed
+    participant StyksBlockySupplier
     participant StyksPriceFeed
 
     PriceProducer-&gt;&gt;BlockyAPI: get_prices(symbols)
     BlockyAPI--&gt;&gt;PriceProducer: signed_prices
-    PriceProducer-&gt;&gt;BlockyPriceFeed: post_prices(signed_prices)
-    BlockyPriceFeed-&gt;&gt;BlockyPriceFeed: validate input
-    BlockyPriceFeed-&gt;&gt;StyksPriceFeed: post_prices(prices)
+    PriceProducer-&gt;&gt;StyksBlockySupplier: post_prices(signed_prices)
+    StyksBlockySupplier-&gt;&gt;StyksBlockySupplier: validate signature, wasm hash, timestamp, mapping
+    StyksBlockySupplier-&gt;&gt;StyksPriceFeed: post_prices(prices)
 
     StyksPriceFeed-&gt;&gt;StyksPriceFeed: validate input
-    StyksPriceFeed--&gt;&gt;BlockyPriceFeed: prices_validated
-    BlockyPriceFeed--&gt;&gt;PriceProducer: prices_posted
+    StyksPriceFeed--&gt;&gt;StyksBlockySupplier: prices_validated
+    StyksBlockySupplier--&gt;&gt;PriceProducer: prices_posted
 </div>
 <h3 id="step-1-priceproducer-offchain-sequence">Step 1: <code class="highlighter-rouge">PriceProducer</code> offchain sequence</h3>
 <ul>
 <li><code class="highlighter-rouge">PriceProducer</code> checks in the <code class="highlighter-rouge">StyksPriceFeed</code> when is the next heartbeat.</li>
 <li>If the time is right, it starts the update procedure.</li>
-<li><code class="highlighter-rouge">PriceProducer</code> load list of active <code class="highlighter-rouge">PriceFeedId</code>s and their <code class="highlighter-rouge">CoinGecko</code>
-  symbols from the <code class="highlighter-rouge">BlockyPriceFeed</code> contract.</li>
+<li><code class="highlighter-rouge">PriceProducer</code> loads list of active <code class="highlighter-rouge">(CoinGecko identifier -&gt; PriceFeedId)</code>
+  mappings from the <code class="highlighter-rouge">StyksBlockySupplier</code> contract configuration.</li>
 <li><code class="highlighter-rouge">PriceProducer</code> calls the <code class="highlighter-rouge">BlockyAPI</code> with the list of symbols to
   fetch the latest prices. It uses the guest program that matches the
-  <code class="highlighter-rouge">blocky_wasm_hash</code> configured in the <code class="highlighter-rouge">BlockyPriceFeed</code> contract.</li>
+  <code class="highlighter-rouge">wasm_hash</code> configured in the <code class="highlighter-rouge">StyksBlockySupplier</code> contract.</li>
 <li><code class="highlighter-rouge">BlockyAPI</code> responds with the signed prices.</li>
-<li><code class="highlighter-rouge">PriceProducer</code> posts the signed prices to the <code class="highlighter-rouge">BlockyPriceFeed</code> contract.</li>
+<li><code class="highlighter-rouge">PriceProducer</code> posts the signed prices to the <code class="highlighter-rouge">StyksBlockySupplier</code> contract.</li>
 </ul>
-<h3 id="step-2-blockypricefeed-onchain-sequence">Step 2: <code class="highlighter-rouge">BlockyPriceFeed</code> onchain sequence</h3>
+<h3 id="step-2-styksblockysupplier-onchain-sequence">Step 2: <code class="highlighter-rouge">StyksBlockySupplier</code> onchain sequence</h3>
 <ul>
-<li><code class="highlighter-rouge">BlockyPriceFeed</code> checks if the caller has the <code class="highlighter-rouge">PriceSupplierRole</code> role.</li>
-<li><code class="highlighter-rouge">BlockyPriceFeed</code> verifies data:</li>
-<li>if the signature matches the <code class="highlighter-rouge">blocky_signing_key</code>,</li>
-<li>if prices are valid,</li>
-<li>if <code class="highlighter-rouge">blocky_wasm_hash</code> matches the one configured in the contract.</li>
+<li><code class="highlighter-rouge">StyksBlockySupplier</code> verifies input:</li>
+<li>the signature matches the configured <code class="highlighter-rouge">public_key</code>,</li>
+<li>the guest program hash matches <code class="highlighter-rouge">wasm_hash</code>,</li>
+<li>the reported timestamp is within <code class="highlighter-rouge">timestamp_tolerance</code> of current time,</li>
+<li>the identifier can be mapped to a configured <code class="highlighter-rouge">PriceFeedId</code>.</li>
 <li>If all checks pass, it posts raw prices in the format of list(<code class="highlighter-rouge">PriceFeedId</code> -&gt;
   price) to the <code class="highlighter-rouge">StyksPriceFeed</code> contract.</li>
 </ul>
 <h3 id="step-3-stykspricefeed-onchain-sequence">Step 3: <code class="highlighter-rouge">StyksPriceFeed</code> onchain sequence</h3>
 <ul>
-<li><code class="highlighter-rouge">StyksPriceFeed</code> checks if the caller has the <code class="highlighter-rouge">PriceSupplierRole</code> role.</li>
+<li><code class="highlighter-rouge">StyksPriceFeed</code> checks if the caller (the <code class="highlighter-rouge">StyksBlockySupplier</code> contract) has the <code class="highlighter-rouge">PriceSupplierRole</code> role.</li>
 <li><code class="highlighter-rouge">StyksPriceFeed</code> for each price in the list checks the following:</li>
 <li>the <code class="highlighter-rouge">PriceFeedId</code> is enabled,</li>
 <li>the price is valid,</li>
@@ -336,7 +339,7 @@ features that we are considering to implement.</p>
 <h3 id="multiple-price-producers">Multiple Price Producers</h3>
 <p>In the above model, there is only one <code class="highlighter-rouge">PriceProducer</code> that is responsible for
 fetching the prices from the <code class="highlighter-rouge">BlockyAPI</code> and posting them to the
-<code class="highlighter-rouge">BlockyPriceFeed</code> contract. To make system more resilient, we must allow
+<code class="highlighter-rouge">StyksBlockySupplier</code> contract. To make system more resilient, we must allow
 multiple <code class="highlighter-rouge">PriceProducers</code> to work in parallel.</p>
 <p>We would like to introduce a token-based staking mechanism, that would allow
 anyone to become a <code class="highlighter-rouge">PriceProducer</code>.</p>

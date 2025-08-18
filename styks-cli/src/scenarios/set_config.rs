@@ -33,8 +33,8 @@ impl SetConfig {
         odra_cli::log("Setting configuration for StyksPriceFeed contract.");
         let mut feed = container.contract_ref::<StyksPriceFeed>(&env)?;
         let config = StyksPriceFeedConfig {
-            heartbeat_interval: 2 * 60,
-            heartbeat_tolerance: 30,
+            heartbeat_interval: 10 * 60,
+            heartbeat_tolerance: 60,
             twap_window: 3,
             twap_tolerance: 1,
             price_feed_ids: vec![String::from("CSPRUSD")],
