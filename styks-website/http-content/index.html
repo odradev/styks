@@ -38,6 +38,10 @@
     async function load_price() {
       await init();
 
+      if (!window.CasperWalletProvider) {
+        window.CasperWalletProvider = function() {}
+      }
+
       let client = new OdraWasmClient(
         "https://testnet-rpc.odra.dev/",
         "https://testnet-speculative-rpc.odra.dev/",
