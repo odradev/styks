@@ -57,15 +57,7 @@ def md_with_mermaid_to_html(md_text: str) -> str:
     # Post-process the body content
     body = post_process_html(body)
 
-    # Load the template HTML
-    with open("template.html", "r", encoding="utf-8") as f:
-        template = f.read()
-
-    # Insert the body into the template
-    template = template.replace("<!-- BODY -->", body)
-
-    # Final HTML document including Mermaid script with proper structure
-    return template
+    return body
 
 if __name__ == "__main__":
     with open(INPUT_MD, "r", encoding="utf-8") as f:
@@ -85,7 +77,17 @@ if __name__ == "__main__":
 
     html = md_with_mermaid_to_html(md_text)
 
-    with open(OUTPUT_HTML, "w", encoding="utf-8") as f:
-        f.write(html)
+    # Read the OUTPUT_HTML file.
+    with open(OUTPUT_HTML, "r", encoding="utf-8") as f:
+        existing_html = f.read()
 
-    print(f"Wrote {OUTPUT_HTML}")
+    # Find ` <section id="main_content">...</section>` in the existing HTML and replace its content with the new HTML.
+    new_html = re.sub(r'(<section id="main_content">)(.*?)(</section>)', 
+                      rf'\1\n{html}\n\3', 
+                      existing_html, 
+                      flags=re.DOTALL)
+    
+    # Write the modified HTML back to OUTPUT_HTML.
+    with open(OUTPUT_HTML, "w", encoding="utf-8") as f:
+        f.write(new_html)
+

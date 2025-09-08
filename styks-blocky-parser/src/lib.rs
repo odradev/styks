@@ -22,7 +22,7 @@ pub fn wasm_hash(wasm_bytes: &[u8]) -> String {
 #[cfg(feature = "std")]
 pub fn block_output_for_tests() -> blocky_output::BlockyOutput {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let path = std::path::Path::new(manifest_dir).join("../resources/test/1_out.json");
+    let path = std::path::Path::new(manifest_dir).join("../resources/test/2_out.json");
     blocky_output::BlockyOutput::try_from_file(path).expect("Failed to load BlockyOutput")
 }
 
