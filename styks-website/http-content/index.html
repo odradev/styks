@@ -33,9 +33,10 @@
   </script>
   <script type="module" src="styks_wasm_client.js"></script>
   <script type="module">
-    import init, { StyksPriceFeedWasmClient, OdraWasmClient, Address, StyksPriceFeedConfig } from "./styks_wasm_client.js";
+    import init, { StyksPriceFeedWasmClient, OdraWasmClient, Address } from "./styks_wasm_client.js";
 
     async function load_price() {
+      
       await init();
 
       if (!window.CasperWalletProvider) {

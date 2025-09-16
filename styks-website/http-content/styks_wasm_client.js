@@ -242,16 +242,42 @@ function takeFromExternrefTable0(idx) {
     wasm.__externref_table_dealloc(idx);
     return value;
 }
+/**
+ * Returns the gas limit for the client for the next calls.
+ * @returns {bigint}
+ */
+export function gas() {
+    const ret = wasm.gas();
+    return BigInt.asUintN(64, ret);
+}
+
+/**
+ * Sets the gas limit for the client for the next calls.
+ * @param {bigint} gas
+ */
+export function setGas(gas) {
+    wasm.setGas(gas);
+}
+
+/**
+ * Returns the default payment amount for transactions.
+ * @returns {bigint}
+ */
+export function DEFAULT_PAYMENT_AMOUNT() {
+    const ret = wasm.DEFAULT_PAYMENT_AMOUNT();
+    return BigInt.asUintN(64, ret);
+}
+
 function __wbg_adapter_38(arg0, arg1) {
-    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__heabe0ed6d136b696(arg0, arg1);
+    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hba46ebb3cf0bc43b(arg0, arg1);
 }
 
 function __wbg_adapter_41(arg0, arg1, arg2) {
-    wasm.closure877_externref_shim(arg0, arg1, arg2);
+    wasm.closure975_externref_shim(arg0, arg1, arg2);
 }
 
-function __wbg_adapter_286(arg0, arg1, arg2, arg3) {
-    wasm.closure1394_externref_shim(arg0, arg1, arg2, arg3);
+function __wbg_adapter_393(arg0, arg1, arg2, arg3) {
+    wasm.closure1499_externref_shim(arg0, arg1, arg2, arg3);
 }
 
 /**
@@ -440,6 +466,75 @@ export class Address {
         this.__wbg_ptr = ret[0] >>> 0;
         AddressFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * @param {HTMLInputElement} input
+     * @returns {Address}
+     */
+    static fromHtmlInput(input) {
+        const ret = wasm.address_fromHtmlInput(input);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return Address.__wrap(ret[0]);
+    }
+}
+
+const BalanceFormatterFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_balanceformatter_free(ptr >>> 0, 1));
+
+export class BalanceFormatter {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(BalanceFormatter.prototype);
+        obj.__wbg_ptr = ptr;
+        BalanceFormatterFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        BalanceFormatterFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_balanceformatter_free(ptr, 0);
+    }
+    /**
+     * @returns {string}
+     */
+    fmt() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.balanceformatter_fmt(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @param {number} precision
+     * @returns {string}
+     */
+    fmtWithPrecision(precision) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.balanceformatter_fmtWithPrecision(this.__wbg_ptr, precision);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
     }
 }
 
@@ -653,6 +748,138 @@ export class CasperWallet {
         const ret = wasm.casperwallet_switchAccount(this.__wbg_ptr);
         return ret;
     }
+    /**
+     * Returns the address of the caller.
+     * @returns {Promise<Address>}
+     */
+    caller() {
+        const ret = wasm.casperwallet_caller(this.__wbg_ptr);
+        return ret;
+    }
+}
+
+const ContractInfoFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_contractinfo_free(ptr >>> 0, 1));
+
+export class ContractInfo {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(ContractInfo.prototype);
+        obj.__wbg_ptr = ptr;
+        ContractInfoFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        ContractInfoFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_contractinfo_free(ptr, 0);
+    }
+    /**
+     * @returns {string}
+     */
+    get name() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.__wbg_get_contractinfo_name(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @param {string} arg0
+     */
+    set name(arg0) {
+        const ptr0 = passStringToWasm0(arg0, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.__wbg_set_contractinfo_name(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * @returns {string}
+     */
+    get package_hash() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.__wbg_get_contractinfo_package_hash(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @param {string} arg0
+     */
+    set package_hash(arg0) {
+        const ptr0 = passStringToWasm0(arg0, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.__wbg_set_contractinfo_package_hash(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * @returns {Address}
+     */
+    get address() {
+        const ret = wasm.contractinfo_address(this.__wbg_ptr);
+        return Address.__wrap(ret);
+    }
+}
+
+const ContractsFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_contracts_free(ptr >>> 0, 1));
+
+export class Contracts {
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        ContractsFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_contracts_free(ptr, 0);
+    }
+    /**
+     * @param {any} js
+     */
+    constructor(js) {
+        const ret = wasm.contracts_new(js);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0] >>> 0;
+        ContractsFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * @param {string} name
+     * @returns {ContractInfo}
+     */
+    get(name) {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.contracts_get(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ContractInfo.__wrap(ret[0]);
+    }
 }
 
 const DeployFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -798,47 +1025,177 @@ export class OdraWasmClient {
      * @param {string} node_address
      * @param {string} speculative_node_address
      * @param {string | null} [chain_name]
-     * @param {bigint | null} [gas]
      * @param {number | null} [ttl]
      * @param {Verbosity | null} [verbosity]
      */
-    constructor(node_address, speculative_node_address, chain_name, gas, ttl, verbosity) {
+    constructor(node_address, speculative_node_address, chain_name, ttl, verbosity) {
         const ptr0 = passStringToWasm0(node_address, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ptr1 = passStringToWasm0(speculative_node_address, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
         var ptr2 = isLikeNone(chain_name) ? 0 : passStringToWasm0(chain_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len2 = WASM_VECTOR_LEN;
-        const ret = wasm.odrawasmclient_new(ptr0, len0, ptr1, len1, ptr2, len2, !isLikeNone(gas), isLikeNone(gas) ? BigInt(0) : gas, isLikeNone(ttl) ? 0x100000001 : (ttl) >>> 0, isLikeNone(verbosity) ? 3 : verbosity);
+        const ret = wasm.odrawasmclient_new(ptr0, len0, ptr1, len1, ptr2, len2, isLikeNone(ttl) ? 0x100000001 : (ttl) >>> 0, isLikeNone(verbosity) ? 3 : verbosity);
         this.__wbg_ptr = ret >>> 0;
         OdraWasmClientFinalization.register(this, this.__wbg_ptr, this);
         return this;
     }
     /**
-     * @param {bigint} gas
-     */
-    setGas(gas) {
-        wasm.odrawasmclient_setGas(this.__wbg_ptr, gas);
-    }
-    /**
-     * @returns {bigint}
-     */
-    static DEFAULT_PAYMENT() {
-        const ret = wasm.odrawasmclient_DEFAULT_PAYMENT();
-        return BigInt.asUintN(64, ret);
-    }
-    /**
-     * Gets a value from a named key of an account or a contract
+     * Returns the balance of the specified address.
      * @param {Address} address
-     * @param {string} name
-     * @returns {Promise<Bytes | undefined>}
+     * @returns {Promise<U512>}
      */
-    getNamedValue(address, name) {
+    getBalance(address) {
         _assertClass(address, Address);
-        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.odrawasmclient_getNamedValue(this.__wbg_ptr, address.__wbg_ptr, ptr0, len0);
+        const ret = wasm.odrawasmclient_getBalance(this.__wbg_ptr, address.__wbg_ptr);
         return ret;
+    }
+    /**
+     * Returns the balance of the specified address.
+     * @param {CasperWallet} wallet
+     * @returns {Promise<U512>}
+     */
+    getCallerBalance(wallet) {
+        _assertClass(wallet, CasperWallet);
+        const ret = wasm.odrawasmclient_getCallerBalance(this.__wbg_ptr, wallet.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Transfers the specified amount to the given address.
+     * @param {Address} to
+     * @param {U512} amount
+     * @param {CasperWallet} wallet
+     * @returns {Promise<TransactionHash>}
+     */
+    transfer(to, amount, wallet) {
+        _assertClass(to, Address);
+        _assertClass(amount, U512);
+        _assertClass(wallet, CasperWallet);
+        const ret = wasm.odrawasmclient_transfer(this.__wbg_ptr, to.__wbg_ptr, amount.__wbg_ptr, wallet.__wbg_ptr);
+        return ret;
+    }
+}
+
+const OverflowingResultU128Finalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_overflowingresultu128_free(ptr >>> 0, 1));
+
+export class OverflowingResultU128 {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(OverflowingResultU128.prototype);
+        obj.__wbg_ptr = ptr;
+        OverflowingResultU128Finalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        OverflowingResultU128Finalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_overflowingresultu128_free(ptr, 0);
+    }
+    /**
+     * @returns {U128}
+     */
+    get result() {
+        const ret = wasm.__wbg_get_overflowingresultu128_result(this.__wbg_ptr);
+        return U128.__wrap(ret);
+    }
+    /**
+     * @returns {boolean}
+     */
+    get overflow() {
+        const ret = wasm.__wbg_get_overflowingresultu128_overflow(this.__wbg_ptr);
+        return ret !== 0;
+    }
+}
+
+const OverflowingResultU256Finalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_overflowingresultu256_free(ptr >>> 0, 1));
+
+export class OverflowingResultU256 {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(OverflowingResultU256.prototype);
+        obj.__wbg_ptr = ptr;
+        OverflowingResultU256Finalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        OverflowingResultU256Finalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_overflowingresultu256_free(ptr, 0);
+    }
+    /**
+     * @returns {U256}
+     */
+    get result() {
+        const ret = wasm.__wbg_get_overflowingresultu256_result(this.__wbg_ptr);
+        return U256.__wrap(ret);
+    }
+    /**
+     * @returns {boolean}
+     */
+    get overflow() {
+        const ret = wasm.__wbg_get_overflowingresultu256_overflow(this.__wbg_ptr);
+        return ret !== 0;
+    }
+}
+
+const OverflowingResultU512Finalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_overflowingresultu512_free(ptr >>> 0, 1));
+
+export class OverflowingResultU512 {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(OverflowingResultU512.prototype);
+        obj.__wbg_ptr = ptr;
+        OverflowingResultU512Finalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        OverflowingResultU512Finalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_overflowingresultu512_free(ptr, 0);
+    }
+    /**
+     * @returns {U512}
+     */
+    get result() {
+        const ret = wasm.__wbg_get_overflowingresultu512_result(this.__wbg_ptr);
+        return U512.__wrap(ret);
+    }
+    /**
+     * @returns {boolean}
+     */
+    get overflow() {
+        const ret = wasm.__wbg_get_overflowingresultu512_overflow(this.__wbg_ptr);
+        return ret !== 0;
     }
 }
 
@@ -1340,10 +1697,9 @@ export class StyksBlockySupplierWasmClient {
      */
     constructor(wasmClient, address) {
         _assertClass(wasmClient, OdraWasmClient);
-        var ptr0 = wasmClient.__destroy_into_raw();
         _assertClass(address, Address);
-        var ptr1 = address.__destroy_into_raw();
-        const ret = wasm.styksblockysupplierwasmclient_new(ptr0, ptr1);
+        var ptr0 = address.__destroy_into_raw();
+        const ret = wasm.styksblockysupplierwasmclient_new(wasmClient.__wbg_ptr, ptr0);
         this.__wbg_ptr = ret >>> 0;
         StyksBlockySupplierWasmClientFinalization.register(this, this.__wbg_ptr, this);
         return this;
@@ -1373,6 +1729,7 @@ export class StyksBlockySupplierWasmClient {
         return ret;
     }
     /**
+     * Verifies the signature against the data.
      * @param {Uint8Array} signature
      * @param {Uint8Array} data
      * @returns {Promise<TransactionHash>}
@@ -1386,6 +1743,7 @@ export class StyksBlockySupplierWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.has_role()` for details.
      * @param {Uint8Array} role
      * @param {Address} address
      * @returns {Promise<boolean>}
@@ -1399,6 +1757,7 @@ export class StyksBlockySupplierWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.grant_role()` for details.
      * @param {Uint8Array} role
      * @param {Address} address
      * @returns {Promise<TransactionHash>}
@@ -1412,6 +1771,7 @@ export class StyksBlockySupplierWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.revoke_role()` for details.
      * @param {Uint8Array} role
      * @param {Address} address
      * @returns {Promise<TransactionHash>}
@@ -1425,6 +1785,7 @@ export class StyksBlockySupplierWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.get_role_admin()` for details.
      * @param {Uint8Array} role
      * @returns {Promise<Uint8Array>}
      */
@@ -1435,6 +1796,7 @@ export class StyksBlockySupplierWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.renounce_role()` for details.
      * @param {Uint8Array} role
      * @param {Address} address
      * @returns {Promise<TransactionHash>}
@@ -1590,10 +1952,9 @@ export class StyksPriceFeedWasmClient {
      */
     constructor(wasmClient, address) {
         _assertClass(wasmClient, OdraWasmClient);
-        var ptr0 = wasmClient.__destroy_into_raw();
         _assertClass(address, Address);
-        var ptr1 = address.__destroy_into_raw();
-        const ret = wasm.styksblockysupplierwasmclient_new(ptr0, ptr1);
+        var ptr0 = address.__destroy_into_raw();
+        const ret = wasm.styksblockysupplierwasmclient_new(wasmClient.__wbg_ptr, ptr0);
         this.__wbg_ptr = ret >>> 0;
         StyksPriceFeedWasmClientFinalization.register(this, this.__wbg_ptr, this);
         return this;
@@ -1660,6 +2021,7 @@ export class StyksPriceFeedWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.has_role()` for details.
      * @param {Uint8Array} role
      * @param {Address} address
      * @returns {Promise<boolean>}
@@ -1673,6 +2035,7 @@ export class StyksPriceFeedWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.grant_role()` for details.
      * @param {Uint8Array} role
      * @param {Address} address
      * @returns {Promise<TransactionHash>}
@@ -1686,6 +2049,7 @@ export class StyksPriceFeedWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.revoke_role()` for details.
      * @param {Uint8Array} role
      * @param {Address} address
      * @returns {Promise<TransactionHash>}
@@ -1699,6 +2063,7 @@ export class StyksPriceFeedWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.get_role_admin()` for details.
      * @param {Uint8Array} role
      * @returns {Promise<Uint8Array>}
      */
@@ -1709,6 +2074,7 @@ export class StyksPriceFeedWasmClient {
         return ret;
     }
     /**
+     * Delegated. See `self.access_control.renounce_role()` for details.
      * @param {Uint8Array} role
      * @param {Address} address
      * @returns {Promise<TransactionHash>}
@@ -1884,7 +2250,10 @@ export class U128 {
         const ptr0 = passStringToWasm0(value, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.u128_from_dec_str(ptr0, len0);
-        this.__wbg_ptr = ret >>> 0;
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0] >>> 0;
         U128Finalization.register(this, this.__wbg_ptr, this);
         return this;
     }
@@ -1892,9 +2261,20 @@ export class U128 {
      * @param {number} value
      * @returns {U128}
      */
-    static fromU32(value) {
-        const ret = wasm.u128_fromU32(value);
+    static fromNumber(value) {
+        const ret = wasm.u128_fromNumber(value);
         return U128.__wrap(ret);
+    }
+    /**
+     * @param {HTMLInputElement} input
+     * @returns {U128}
+     */
+    static fromHtmlInput(input) {
+        const ret = wasm.u128_fromHtmlInput(input);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U128.__wrap(ret[0]);
     }
     /**
      * @param {bigint} value
@@ -1902,7 +2282,10 @@ export class U128 {
      */
     static fromBigInt(value) {
         const ret = wasm.u128_fromBigInt(value);
-        return U128.__wrap(ret);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U128.__wrap(ret[0]);
     }
     /**
      * @returns {string}
@@ -1918,6 +2301,272 @@ export class U128 {
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+     * @returns {any}
+     */
+    toJson() {
+        const ret = wasm.u128_toJson(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} decimals
+     * @returns {BalanceFormatter}
+     */
+    formatter(decimals) {
+        const ret = wasm.u128_formatter(this.__wbg_ptr, decimals);
+        return BalanceFormatter.__wrap(ret);
+    }
+    /**
+     * @param {U128} other
+     * @returns {U128}
+     */
+    mul(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_mul(this.__wbg_ptr, other.__wbg_ptr);
+        return U128.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U128}
+     */
+    mulBigInt(other) {
+        const ret = wasm.u128_mulBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U128.__wrap(ret[0]);
+    }
+    /**
+     * @param {U128} other
+     * @returns {U128}
+     */
+    div(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_div(this.__wbg_ptr, other.__wbg_ptr);
+        return U128.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U128}
+     */
+    divBigInt(other) {
+        const ret = wasm.u128_divBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U128.__wrap(ret[0]);
+    }
+    /**
+     * @param {U128} other
+     * @returns {U128}
+     */
+    add(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_add(this.__wbg_ptr, other.__wbg_ptr);
+        return U128.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U128}
+     */
+    addBigInt(other) {
+        const ret = wasm.u128_addBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U128.__wrap(ret[0]);
+    }
+    /**
+     * @param {U128} other
+     * @returns {U128}
+     */
+    sub(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_sub(this.__wbg_ptr, other.__wbg_ptr);
+        return U128.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U128}
+     */
+    subBigInt(other) {
+        const ret = wasm.u128_subBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U128.__wrap(ret[0]);
+    }
+    /**
+     * @param {U128} other
+     * @returns {U128 | undefined}
+     */
+    checkedMul(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_checkedMul(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U128.__wrap(ret);
+    }
+    /**
+     * @param {U128} other
+     * @returns {U128 | undefined}
+     */
+    checkedAdd(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_checkedAdd(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U128.__wrap(ret);
+    }
+    /**
+     * @param {U128} other
+     * @returns {U128 | undefined}
+     */
+    checkedSub(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_checkedSub(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U128.__wrap(ret);
+    }
+    /**
+     * @param {U128} other
+     * @returns {U128 | undefined}
+     */
+    checkedDiv(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_checkedDiv(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U128.__wrap(ret);
+    }
+    /**
+     * @param {U128} other
+     * @returns {U128 | undefined}
+     */
+    checkedRem(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_checkedRem(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U128.__wrap(ret);
+    }
+    /**
+     * @param {number} exp
+     * @returns {U128 | undefined}
+     */
+    checkedPow(exp) {
+        const ret = wasm.u128_checkedPow(this.__wbg_ptr, exp);
+        return ret === 0 ? undefined : U128.__wrap(ret);
+    }
+    /**
+     * @returns {bigint}
+     */
+    toBigInt() {
+        const ret = wasm.u128_toBigInt(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {U128} other
+     * @returns {boolean}
+     */
+    lt(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_lt(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U128} other
+     * @returns {boolean}
+     */
+    le(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_le(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U128} other
+     * @returns {boolean}
+     */
+    gt(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_gt(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U128} other
+     * @returns {boolean}
+     */
+    ge(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_ge(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U128} other
+     * @returns {OverflowingResultU128}
+     */
+    overflowingMul(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_overflowingMul(this.__wbg_ptr, other.__wbg_ptr);
+        return OverflowingResultU128.__wrap(ret);
+    }
+    /**
+     * @param {U128} other
+     * @returns {OverflowingResultU128}
+     */
+    overflowingAdd(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_overflowingAdd(this.__wbg_ptr, other.__wbg_ptr);
+        return OverflowingResultU128.__wrap(ret);
+    }
+    /**
+     * @param {U128} other
+     * @returns {OverflowingResultU128}
+     */
+    overflowingSub(other) {
+        _assertClass(other, U128);
+        const ret = wasm.u128_overflowingSub(this.__wbg_ptr, other.__wbg_ptr);
+        return OverflowingResultU128.__wrap(ret);
+    }
+    /**
+     * @param {number} exp
+     * @returns {OverflowingResultU128}
+     */
+    overflowingPow(exp) {
+        const ret = wasm.u128_overflowingPow(this.__wbg_ptr, exp);
+        return OverflowingResultU128.__wrap(ret);
+    }
+    /**
+     * @param {U512} value
+     * @returns {U128}
+     */
+    static fromU512(value) {
+        _assertClass(value, U512);
+        var ptr0 = value.__destroy_into_raw();
+        const ret = wasm.u128_fromU512(ptr0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U128.__wrap(ret[0]);
+    }
+    /**
+     * @returns {U512}
+     */
+    toU512() {
+        const ret = wasm.u128_toU512(this.__wbg_ptr);
+        return U512.__wrap(ret);
+    }
+    /**
+     * @param {U256} value
+     * @returns {U128}
+     */
+    static fromU256(value) {
+        _assertClass(value, U256);
+        var ptr0 = value.__destroy_into_raw();
+        const ret = wasm.u128_fromU256(ptr0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U128.__wrap(ret[0]);
+    }
+    /**
+     * @returns {U256}
+     */
+    toU256() {
+        const ret = wasm.u128_toU256(this.__wbg_ptr);
+        return U256.__wrap(ret);
     }
 }
 
@@ -1953,7 +2602,10 @@ export class U256 {
         const ptr0 = passStringToWasm0(value, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.u256_from_dec_str(ptr0, len0);
-        this.__wbg_ptr = ret >>> 0;
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0] >>> 0;
         U256Finalization.register(this, this.__wbg_ptr, this);
         return this;
     }
@@ -1961,9 +2613,20 @@ export class U256 {
      * @param {number} value
      * @returns {U256}
      */
-    static fromU32(value) {
-        const ret = wasm.u256_fromU32(value);
+    static fromNumber(value) {
+        const ret = wasm.u256_fromNumber(value);
         return U256.__wrap(ret);
+    }
+    /**
+     * @param {HTMLInputElement} input
+     * @returns {U256}
+     */
+    static fromHtmlInput(input) {
+        const ret = wasm.u256_fromHtmlInput(input);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U256.__wrap(ret[0]);
     }
     /**
      * @param {bigint} value
@@ -1971,7 +2634,10 @@ export class U256 {
      */
     static fromBigInt(value) {
         const ret = wasm.u256_fromBigInt(value);
-        return U256.__wrap(ret);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U256.__wrap(ret[0]);
     }
     /**
      * @returns {string}
@@ -1994,6 +2660,245 @@ export class U256 {
     toJson() {
         const ret = wasm.u256_toJson(this.__wbg_ptr);
         return ret;
+    }
+    /**
+     * @param {number} decimals
+     * @returns {BalanceFormatter}
+     */
+    formatter(decimals) {
+        const ret = wasm.u256_formatter(this.__wbg_ptr, decimals);
+        return BalanceFormatter.__wrap(ret);
+    }
+    /**
+     * @param {U256} other
+     * @returns {U256}
+     */
+    mul(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_mul(this.__wbg_ptr, other.__wbg_ptr);
+        return U256.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U256}
+     */
+    mulBigInt(other) {
+        const ret = wasm.u256_mulBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U256.__wrap(ret[0]);
+    }
+    /**
+     * @param {U256} other
+     * @returns {U256}
+     */
+    div(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_div(this.__wbg_ptr, other.__wbg_ptr);
+        return U256.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U256}
+     */
+    divBigInt(other) {
+        const ret = wasm.u256_divBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U256.__wrap(ret[0]);
+    }
+    /**
+     * @param {U256} other
+     * @returns {U256}
+     */
+    add(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_add(this.__wbg_ptr, other.__wbg_ptr);
+        return U256.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U256}
+     */
+    addBigInt(other) {
+        const ret = wasm.u256_addBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U256.__wrap(ret[0]);
+    }
+    /**
+     * @param {U256} other
+     * @returns {U256}
+     */
+    sub(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_sub(this.__wbg_ptr, other.__wbg_ptr);
+        return U256.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U256}
+     */
+    subBigInt(other) {
+        const ret = wasm.u256_subBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U256.__wrap(ret[0]);
+    }
+    /**
+     * @param {U256} other
+     * @returns {U256 | undefined}
+     */
+    checkedMul(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_checkedMul(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U256.__wrap(ret);
+    }
+    /**
+     * @param {U256} other
+     * @returns {U256 | undefined}
+     */
+    checkedAdd(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_checkedAdd(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U256.__wrap(ret);
+    }
+    /**
+     * @param {U256} other
+     * @returns {U256 | undefined}
+     */
+    checkedSub(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_checkedSub(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U256.__wrap(ret);
+    }
+    /**
+     * @param {U256} other
+     * @returns {U256 | undefined}
+     */
+    checkedDiv(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_checkedDiv(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U256.__wrap(ret);
+    }
+    /**
+     * @param {U256} other
+     * @returns {U256 | undefined}
+     */
+    checkedRem(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_checkedRem(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U256.__wrap(ret);
+    }
+    /**
+     * @param {number} exp
+     * @returns {U256 | undefined}
+     */
+    checkedPow(exp) {
+        const ret = wasm.u256_checkedPow(this.__wbg_ptr, exp);
+        return ret === 0 ? undefined : U256.__wrap(ret);
+    }
+    /**
+     * @returns {bigint}
+     */
+    toBigInt() {
+        const ret = wasm.u256_toBigInt(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {U256} other
+     * @returns {boolean}
+     */
+    lt(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_lt(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U256} other
+     * @returns {boolean}
+     */
+    le(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_le(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U256} other
+     * @returns {boolean}
+     */
+    gt(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_gt(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U256} other
+     * @returns {boolean}
+     */
+    ge(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_ge(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U256} other
+     * @returns {OverflowingResultU256}
+     */
+    overflowingMul(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_overflowingMul(this.__wbg_ptr, other.__wbg_ptr);
+        return OverflowingResultU256.__wrap(ret);
+    }
+    /**
+     * @param {U256} other
+     * @returns {OverflowingResultU256}
+     */
+    overflowingAdd(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_overflowingAdd(this.__wbg_ptr, other.__wbg_ptr);
+        return OverflowingResultU256.__wrap(ret);
+    }
+    /**
+     * @param {U256} other
+     * @returns {OverflowingResultU256}
+     */
+    overflowingSub(other) {
+        _assertClass(other, U256);
+        const ret = wasm.u256_overflowingSub(this.__wbg_ptr, other.__wbg_ptr);
+        return OverflowingResultU256.__wrap(ret);
+    }
+    /**
+     * @param {number} exp
+     * @returns {OverflowingResultU256}
+     */
+    overflowingPow(exp) {
+        const ret = wasm.u256_overflowingPow(this.__wbg_ptr, exp);
+        return OverflowingResultU256.__wrap(ret);
+    }
+    /**
+     * @param {U512} value
+     * @returns {U256}
+     */
+    static fromU512(value) {
+        _assertClass(value, U512);
+        var ptr0 = value.__destroy_into_raw();
+        const ret = wasm.u256_fromU512(ptr0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U256.__wrap(ret[0]);
+    }
+    /**
+     * @returns {U512}
+     */
+    toU512() {
+        const ret = wasm.u256_toU512(this.__wbg_ptr);
+        return U512.__wrap(ret);
     }
 }
 
@@ -2029,7 +2934,10 @@ export class U512 {
         const ptr0 = passStringToWasm0(value, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.u512_from_dec_str(ptr0, len0);
-        this.__wbg_ptr = ret >>> 0;
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0] >>> 0;
         U512Finalization.register(this, this.__wbg_ptr, this);
         return this;
     }
@@ -2037,9 +2945,20 @@ export class U512 {
      * @param {number} value
      * @returns {U512}
      */
-    static fromU32(value) {
-        const ret = wasm.u512_fromU32(value);
+    static fromNumber(value) {
+        const ret = wasm.u512_fromNumber(value);
         return U512.__wrap(ret);
+    }
+    /**
+     * @param {HTMLInputElement} input
+     * @returns {U512}
+     */
+    static fromHtmlInput(input) {
+        const ret = wasm.u512_fromHtmlInput(input);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U512.__wrap(ret[0]);
     }
     /**
      * @param {bigint} value
@@ -2047,7 +2966,10 @@ export class U512 {
      */
     static fromBigInt(value) {
         const ret = wasm.u512_fromBigInt(value);
-        return U512.__wrap(ret);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U512.__wrap(ret[0]);
     }
     /**
      * @returns {string}
@@ -2063,6 +2985,232 @@ export class U512 {
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+     * @returns {any}
+     */
+    toJson() {
+        const ret = wasm.u512_toJson(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} decimals
+     * @returns {BalanceFormatter}
+     */
+    formatter(decimals) {
+        const ret = wasm.u512_formatter(this.__wbg_ptr, decimals);
+        return BalanceFormatter.__wrap(ret);
+    }
+    /**
+     * @param {U512} other
+     * @returns {U512}
+     */
+    mul(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_mul(this.__wbg_ptr, other.__wbg_ptr);
+        return U512.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U512}
+     */
+    mulBigInt(other) {
+        const ret = wasm.u512_mulBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U512.__wrap(ret[0]);
+    }
+    /**
+     * @param {U512} other
+     * @returns {U512}
+     */
+    div(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_div(this.__wbg_ptr, other.__wbg_ptr);
+        return U512.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U512}
+     */
+    divBigInt(other) {
+        const ret = wasm.u512_divBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U512.__wrap(ret[0]);
+    }
+    /**
+     * @param {U512} other
+     * @returns {U512}
+     */
+    add(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_add(this.__wbg_ptr, other.__wbg_ptr);
+        return U512.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U512}
+     */
+    addBigInt(other) {
+        const ret = wasm.u512_addBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U512.__wrap(ret[0]);
+    }
+    /**
+     * @param {U512} other
+     * @returns {U512}
+     */
+    sub(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_sub(this.__wbg_ptr, other.__wbg_ptr);
+        return U512.__wrap(ret);
+    }
+    /**
+     * @param {bigint} other
+     * @returns {U512}
+     */
+    subBigInt(other) {
+        const ret = wasm.u512_subBigInt(this.__wbg_ptr, other);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return U512.__wrap(ret[0]);
+    }
+    /**
+     * @param {U512} other
+     * @returns {U512 | undefined}
+     */
+    checkedMul(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_checkedMul(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U512.__wrap(ret);
+    }
+    /**
+     * @param {U512} other
+     * @returns {U512 | undefined}
+     */
+    checkedAdd(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_checkedAdd(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U512.__wrap(ret);
+    }
+    /**
+     * @param {U512} other
+     * @returns {U512 | undefined}
+     */
+    checkedSub(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_checkedSub(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U512.__wrap(ret);
+    }
+    /**
+     * @param {U512} other
+     * @returns {U512 | undefined}
+     */
+    checkedDiv(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_checkedDiv(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U512.__wrap(ret);
+    }
+    /**
+     * @param {U512} other
+     * @returns {U512 | undefined}
+     */
+    checkedRem(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_checkedRem(this.__wbg_ptr, other.__wbg_ptr);
+        return ret === 0 ? undefined : U512.__wrap(ret);
+    }
+    /**
+     * @param {number} exp
+     * @returns {U512 | undefined}
+     */
+    checkedPow(exp) {
+        const ret = wasm.u512_checkedPow(this.__wbg_ptr, exp);
+        return ret === 0 ? undefined : U512.__wrap(ret);
+    }
+    /**
+     * @returns {bigint}
+     */
+    toBigInt() {
+        const ret = wasm.u512_toBigInt(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {U512} other
+     * @returns {boolean}
+     */
+    lt(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_lt(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U512} other
+     * @returns {boolean}
+     */
+    le(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_le(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U512} other
+     * @returns {boolean}
+     */
+    gt(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_gt(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U512} other
+     * @returns {boolean}
+     */
+    ge(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_ge(this.__wbg_ptr, other.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {U512} other
+     * @returns {OverflowingResultU512}
+     */
+    overflowingMul(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_overflowingMul(this.__wbg_ptr, other.__wbg_ptr);
+        return OverflowingResultU512.__wrap(ret);
+    }
+    /**
+     * @param {U512} other
+     * @returns {OverflowingResultU512}
+     */
+    overflowingAdd(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_overflowingAdd(this.__wbg_ptr, other.__wbg_ptr);
+        return OverflowingResultU512.__wrap(ret);
+    }
+    /**
+     * @param {U512} other
+     * @returns {OverflowingResultU512}
+     */
+    overflowingSub(other) {
+        _assertClass(other, U512);
+        const ret = wasm.u512_overflowingSub(this.__wbg_ptr, other.__wbg_ptr);
+        return OverflowingResultU512.__wrap(ret);
+    }
+    /**
+     * @param {number} exp
+     * @returns {OverflowingResultU512}
+     */
+    overflowingPow(exp) {
+        const ret = wasm.u512_overflowingPow(this.__wbg_ptr, exp);
+        return OverflowingResultU512.__wrap(ret);
     }
 }
 
@@ -2231,6 +3379,10 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_abort_775ef1d17fc65868 = function(arg0) {
         arg0.abort();
     };
+    imports.wbg.__wbg_address_new = function(arg0) {
+        const ret = Address.__wrap(arg0);
+        return ret;
+    };
     imports.wbg.__wbg_append_8c7dd8d641a5f01b = function() { return handleError(function (arg0, arg1, arg2, arg3, arg4) {
         arg0.append(getStringFromWasm0(arg1, arg2), getStringFromWasm0(arg3, arg4));
     }, arguments) };
@@ -2240,10 +3392,6 @@ function __wbg_get_imports() {
     }, arguments) };
     imports.wbg.__wbg_buffer_609cc3eee51ed158 = function(arg0) {
         const ret = arg0.buffer;
-        return ret;
-    };
-    imports.wbg.__wbg_bytes_new = function(arg0) {
-        const ret = Bytes.__wrap(arg0);
         return ret;
     };
     imports.wbg.__wbg_call_672a4d21634d4a24 = function() { return handleError(function (arg0, arg1) {
@@ -2342,7 +3490,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_286(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_393(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -2504,8 +3652,19 @@ function __wbg_get_imports() {
         const ret = TransactionHash.__wrap(arg0);
         return ret;
     };
+    imports.wbg.__wbg_u512_new = function(arg0) {
+        const ret = U512.__wrap(arg0);
+        return ret;
+    };
     imports.wbg.__wbg_url_ae10c34ca209681d = function(arg0, arg1) {
         const ret = arg1.url;
+        const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+        getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+    };
+    imports.wbg.__wbg_value_91cbf0dd3ab84c1e = function(arg0, arg1) {
+        const ret = arg1.value;
         const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
         getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
@@ -2540,12 +3699,12 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper3072 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 842, __wbg_adapter_38);
+    imports.wbg.__wbindgen_closure_wrapper3441 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 940, __wbg_adapter_38);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper3133 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 878, __wbg_adapter_41);
+    imports.wbg.__wbindgen_closure_wrapper3502 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 976, __wbg_adapter_41);
         return ret;
     };
     imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {
