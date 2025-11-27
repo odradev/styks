@@ -134,8 +134,8 @@ mod tests {
         assert_eq!(output.market, "Gate");
         assert_eq!(output.coin_id, "CSPR");
         assert_eq!(output.currency, "USD");
-        assert_eq!(output.price, 1056);
-        assert_eq!(output.timestamp, 1755463157);
+        assert_eq!(output.price, 1033);
+        assert_eq!(output.timestamp, 1755599753);
         assert_eq!(output.identifier(), "Gate_CSPR_USD");
     }
 }

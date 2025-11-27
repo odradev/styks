@@ -18,14 +18,14 @@ impl DeployScript for ContractsDeployScript {
             is_upgradable: true,
             allow_key_override: true,
         };
-        StyksPriceFeed::load_or_deploy_with_cfg(env, NoArgs, cfg, container, cspr!(400))?;
+        StyksPriceFeed::load_or_deploy_with_cfg(env, None, NoArgs, cfg, container, cspr!(400))?;
 
         let cfg = InstallConfig {
             package_named_key: StyksBlockySupplier::ident(),
             is_upgradable: true,
             allow_key_override: true,
         };
-        StyksBlockySupplier::load_or_deploy_with_cfg(env, NoArgs, cfg, container, cspr!(600))?;
+        StyksBlockySupplier::load_or_deploy_with_cfg(env, None, NoArgs, cfg, container, cspr!(600))?;
         Ok(())
     }
 }

@@ -1,8 +1,8 @@
-use odra::{casper_types::{bytesrepr::Bytes, Block}, contract_def::HasIdent, host::HostEnv};
+use odra::{casper_types::bytesrepr::Bytes, contract_def::HasIdent, host::HostEnv};
 use odra_cli::{
     cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, CommandArg, ContractProvider, DeployedContractsContainer
 };
-use styks_blocky_parser::{block_output_for_tests, blocky_claims::BlockyClaims, wasm_hash_for_tests};
+use styks_blocky_parser::{block_output_for_tests, wasm_hash_for_tests};
 use styks_contracts::{styks_blocky_supplier::{StyksBlockySupplerConfig, StyksBlockySupplier}, styks_price_feed::{StyksPriceFeed, StyksPriceFeedConfig}};
 
 pub struct SetConfig;
