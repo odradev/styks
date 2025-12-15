@@ -47,7 +47,7 @@ impl SetConfig {
             }    
         }
         odra_cli::log("Current configuration does not match the desired values.");
-        env.set_gas(cspr!(5));
+        env.set_gas(cspr!(4));
         feed.set_config(config);
         odra_cli::log("Configuration set successfully for StyksPriceFeed contract.");
         Ok(())
