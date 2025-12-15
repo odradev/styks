@@ -172,7 +172,7 @@ impl Updater {
             self.price_feed_id, price, timestamp
         ));
 
-        self.env.set_gas(cspr!(5.0));
+        self.env.set_gas(cspr!(4.0));
         let result = self.supplier_contract.try_report_signed_prices(
             Bytes::from(signature),
             Bytes::from(data),
