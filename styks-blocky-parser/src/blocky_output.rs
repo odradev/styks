@@ -40,6 +40,27 @@ impl BlockyOutput {
         TA::new(&ta_data)
     }
 
+    /// Returns the raw transitive attestation bytes (base64 decoded).
+    /// Use this to pass to the contract's `report_prices` entrypoint.
+    pub fn transitive_attestation_bytes(&self) -> Vec<u8> {
+        let ta_data = &self.transitive_attested_function_call.transitive_attestation;
+        BASE64_STANDARD.decode(ta_data).expect("Failed to decode TA data")
+    }
+
+    /// Returns the raw enclave attestation bytes (base64 decoded).
+    /// This contains the AWS Nitro attestation document(s).
+    pub fn enclave_attestation_bytes(&self) -> Vec<u8> {
+        let ea_data = &self.enclave_attested_application_public_key.enclave_attestation;
+        BASE64_STANDARD.decode(ea_data).expect("Failed to decode enclave attestation")
+    }
+
+    /// Returns the enclave attestation claims as JSON bytes.
+    /// Use this for the contract's `register_signer` entrypoint.
+    pub fn enclave_attestation_claims_json(&self) -> Vec<u8> {
+        let claims = &self.enclave_attested_application_public_key.claims;
+        serde_json_wasm::to_vec(claims).expect("Failed to serialize claims to JSON")
+    }
+
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

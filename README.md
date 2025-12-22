@@ -30,6 +30,17 @@ Below you can find detailed description of the Styks project.
 
 See [BUILD.md](BUILD.md) for prerequisites and build instructions.
 
+## Documentation
+
+Detailed technical documentation is available in the [docs/](docs/) folder:
+
+| Document | Description |
+|----------|-------------|
+| [Quick Start](docs/quickstart.md) | Setup, deployment, and usage guide |
+| [Measurement Anchored Model](docs/measurement-anchored-model.md) | Architecture of the trust model |
+| [API Reference](docs/api-reference.md) | Contract entrypoints and parameters |
+| [Security Model](docs/security-model.md) | Trust assumptions and threat analysis |
+
 ## Why does Casper need a price oracle?
 
 The price oracle is a piece of public infrastructure, that ports a price data
@@ -238,26 +249,48 @@ the `StyksPriceFeed` smart contract. It is responsible for receiving the signed
 prices from the `PriceProducer` and posting them to the `StyksPriceFeed` after
 verifying authenticity and freshness.
 
-It is configured as follows:
+### Measurement Anchored Trust Model
+
+Instead of trusting a static public key, the contract uses a **measurement anchored
+trust model**. This means any signing key that can prove it originated from an
+AWS Nitro Enclave with allowlisted PCR measurements is automatically trusted.
+
+Benefits:
+- **Automatic key rotation**: No governance transaction needed when keys change
+- **Zero downtime**: New enclave instances are trusted immediately
+- **Flexible operations**: Multiple enclave instances can operate in parallel
+
+See [Measurement Anchored Model](docs/measurement-anchored-model.md) for details.
+
+### Configuration
 
 - `wasm_hash` - hash of the Blocky's guest program (a WASM file).
-- `public_key` - public key used to verify the signature of the prices.
-- `price_feed_address` - address of the `StyksPriceFeed` contract,
-  where the prices are posted.
+- `expected_function` - expected function name in attestation claims (e.g., `priceFunc`).
+- `allowed_measurements` - list of trusted enclave PCR measurements.
+- `price_feed_address` - address of the `StyksPriceFeed` contract.
 - `coingecko_feed_ids` - list of mappings between Blocky/CoinGecko identifiers and
   on-chain PriceFeedIds. Example: `("Gate_CSPR_USD", "CSPRUSD")`.
 - `timestamp_tolerance` - allowed drift (in seconds) between the reported timestamp
   and the current on-chain time.
+- `signer_ttl_secs` - how long a cached signer remains valid before re-attestation.
 
-Security roles:
+### Security Roles
 
-- `AdminRole` - manages roles of other accounts,
+- `AdminRole` - manages roles of other accounts.
 - `ConfigManagerRole` - manages configuration of the contract.
+- `GuardianRole` - can pause/unpause and revoke signers for incident response.
 
-Note:
-- Anyone can submit signed data via `report_signed_prices`, but only data that
-  is correctly signed with `public_key`, produced by the expected `wasm_hash`,
-  and whose timestamp is within `timestamp_tolerance` will be forwarded to the feed.
+### Operational Controls
+
+- `pause()` / `unpause()` - halt or resume price reporting in emergencies.
+- `revoke_signer(signer_id)` - immediately revoke a compromised signing key.
+
+### Notes
+
+- Anyone can submit signed data via `report_prices`, but only data from signers
+  with valid enclave attestation matching `allowed_measurements` will be accepted.
+- Verified signers are cached for `signer_ttl_secs` to reduce gas costs.
+- Replay protection ensures each price timestamp is strictly newer than the last.
 - The `StyksBlockySupplier` contract must have the `PriceSupplierRole` assigned
   in the `StyksPriceFeed` contract in order to be able to post the prices there.
 
@@ -274,40 +307,55 @@ sequenceDiagram
     participant StyksBlockySupplier
     participant StyksPriceFeed
 
-    PriceProducer->>BlockyAPI: get_prices(symbols)
-    BlockyAPI-->>PriceProducer: signed_prices
-    PriceProducer->>StyksBlockySupplier: post_prices(signed_prices)
-    StyksBlockySupplier->>StyksBlockySupplier: validate signature, wasm hash, timestamp, mapping
-    StyksBlockySupplier->>StyksPriceFeed: post_prices(prices)
+    Note over PriceProducer,StyksBlockySupplier: Initial Setup (once per session)
+    PriceProducer->>BlockyAPI: get_attestation()
+    BlockyAPI-->>PriceProducer: enclave_attestation + public_key
+    PriceProducer->>StyksBlockySupplier: register_signer(attestation, pubkey)
+    StyksBlockySupplier->>StyksBlockySupplier: verify PCRs in allowlist
+    StyksBlockySupplier-->>PriceProducer: signer_id
 
-    StyksPriceFeed->>StyksPriceFeed: validate input
-    StyksPriceFeed-->>StyksBlockySupplier: prices_validated
+    Note over PriceProducer,StyksPriceFeed: Price Updates (fast path)
+    PriceProducer->>BlockyAPI: get_prices(symbols)
+    BlockyAPI-->>PriceProducer: transitive_attestation (signed prices)
+    PriceProducer->>StyksBlockySupplier: report_prices(ta, signer_id)
+    StyksBlockySupplier->>StyksBlockySupplier: verify signature, wasm hash, function, timestamp
+    StyksBlockySupplier->>StyksPriceFeed: add_to_feed(prices)
+    StyksPriceFeed->>StyksPriceFeed: validate heartbeat timing
+    StyksPriceFeed-->>StyksBlockySupplier: success
     StyksBlockySupplier-->>PriceProducer: prices_posted
 ```
 
-### Step 1: `PriceProducer` offchain sequence
+### Step 1: `PriceProducer` Signer Registration (once per session)
+
+- `PriceProducer` calls `BlockyAPI` to get enclave attestation.
+- `BlockyAPI` returns attestation claims JSON and the enclave's public key.
+- `PriceProducer` calls `register_signer(attestation, pubkey)` on the contract.
+- `StyksBlockySupplier` verifies the attestation PCRs match `allowed_measurements`.
+- Contract caches the signer and returns a `signer_id` for future use.
+
+### Step 2: `PriceProducer` Price Update Loop
 
 - `PriceProducer` checks in the `StyksPriceFeed` when is the next heartbeat.
 - If the time is right, it starts the update procedure.
-- `PriceProducer` loads list of active `(CoinGecko identifier -> PriceFeedId)`
-  mappings from the `StyksBlockySupplier` contract configuration.
 - `PriceProducer` calls the `BlockyAPI` with the list of symbols to
-  fetch the latest prices. It uses the guest program that matches the
-  `wasm_hash` configured in the `StyksBlockySupplier` contract.
-- `BlockyAPI` responds with the signed prices.
-- `PriceProducer` posts the signed prices to the `StyksBlockySupplier` contract.
+  fetch the latest prices.
+- `BlockyAPI` responds with signed prices as a transitive attestation.
+- `PriceProducer` posts using `report_prices(ta, signer_id)` (fast path).
+- If signer expired/revoked, falls back to slow path with inline registration.
 
-### Step 2: `StyksBlockySupplier` onchain sequence
+### Step 3: `StyksBlockySupplier` onchain sequence
 
 - `StyksBlockySupplier` verifies input:
-  - the signature matches the configured `public_key`,
+  - the signer is valid (not revoked, not expired) OR registers inline,
+  - the signature matches the signer's public key,
   - the guest program hash matches `wasm_hash`,
+  - the function name matches `expected_function`,
   - the reported timestamp is within `timestamp_tolerance` of current time,
+  - the timestamp is newer than the last accepted (replay protection),
   - the identifier can be mapped to a configured `PriceFeedId`.
-- If all checks pass, it posts raw prices in the format of list(`PriceFeedId` ->
-  price) to the `StyksPriceFeed` contract.
+- If all checks pass, it posts raw prices to the `StyksPriceFeed` contract.
 
-### Step 3: `StyksPriceFeed` onchain sequence
+### Step 4: `StyksPriceFeed` onchain sequence
 
 - `StyksPriceFeed` checks if the caller (the `StyksBlockySupplier` contract) has the `PriceSupplierRole` role.
 - `StyksPriceFeed` for each price in the list checks the following:
@@ -315,7 +363,7 @@ sequenceDiagram
   - the price is valid,
   - the time is within the heartbeat tolerance,
   - the price was not already posted in the current heartbeat.
-- For each valid price, it update the price of the `PriceFeedId` in the
+- For each valid price, it updates the price of the `PriceFeedId` in the
   `StyksPriceFeed` contract.
 
 ## Further Work
