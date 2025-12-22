@@ -20,8 +20,6 @@ This document describes the security enhancements added to `StyksBlockySupplier`
 - [Operational Procedures](#operational-procedures)
 - [Risks and Mitigations](#risks-and-mitigations)
 - [Benefits](#benefits)
-- [Backward Compatibility](#backward-compatibility)
-- [File Changes Summary](#file-changes-summary)
 
 ---
 
@@ -520,38 +518,6 @@ For any emergency requiring immediate halt:
 ### API
 
 - **`report_signed_prices`**: Same parameters, requires populated key ring
-
----
-
-## File Changes Summary
-
-```
-styks-contracts/src/styks_blocky_supplier.rs
-  - Added SignerKeyRecord struct with is_active() method
-  - Added 5 events: SignerKeyAdded, SignerKeyRetired, SignerKeyRevoked, Paused, Unpaused
-  - Added Guardian role to StyksBlockySupplerRole enum
-  - Added 6 new error variants (46102, 46400-46404)
-  - Added 4 new storage fields
-  - Added key ring entrypoints: get_signer_keys, add_signer_key, retire_signer_key, revoke_signer_key
-  - Added pause entrypoints: pause, unpause, is_paused
-  - Added function entrypoints: set_expected_function, get_expected_function
-  - Modified report_signed_prices with pause gate, key ring verification, function check, monotonic timestamp
-  - Added helper methods: assert_guardian_or_admin, require_not_paused, assert_valid_signature_any
-
-styks-blocky-parser/src/verify.rs
-  - Added validate_public_key() function for SEC1 key validation
-
-styks-blocky-parser/src/blocky_claims.rs
-  - Fixed test assertions to match current test data (price 516, timestamp 1765796826)
-
-styks-cli/src/scenarios/set_permissions.rs
-  - Added --guardian-address CLI argument
-  - Grants Guardian role to specified address
-
-styks-cli/src/scenarios/set_config.rs
-  - Auto-bootstraps key ring with current public key after config
-  - Sets expected function to "priceFunc" for new deployments
-```
 
 ---
 
