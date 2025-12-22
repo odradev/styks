@@ -3,6 +3,13 @@ target
 build
 prepare
 .DS_Store
-.env
 Cargo.lock
 wasm
+
+# Local contract backups (deployment-specific)
+resources/contracts_backup_*.toml
+resources/contracts_old_upstream.toml
+
+# Secrets - NEVER commit these
+.env
+.keys/

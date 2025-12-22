@@ -11,6 +11,7 @@ styks-blocky-parser = { path = "../styks-blocky-parser", default-features = fals
 
 [dev-dependencies]
 odra-test = { workspace = true }
+styks-blocky-parser = { path = "../styks-blocky-parser", features = ["std"] }
 
 [build-dependencies]
 odra-build = { workspace = true }

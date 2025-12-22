@@ -33,7 +33,7 @@ impl SetConfig {
         odra_cli::log("Setting configuration for StyksPriceFeed contract.");
         let mut feed = container.contract_ref::<StyksPriceFeed>(&env)?;
         let config = StyksPriceFeedConfig {
-            heartbeat_interval: 30 * 60,
+            heartbeat_interval: 30 * 60,  // 30 minutes
             heartbeat_tolerance: 60,
             twap_window: 3,
             twap_tolerance: 1,
@@ -70,7 +70,6 @@ impl SetConfig {
 
         let supplier_config = StyksBlockySupplerConfig {
             wasm_hash,
-            public_key: Bytes::from(public_key.clone()),
             coingecko_feed_ids: vec![
                 (String::from("Gate_CSPR_USD"), String::from("CSPRUSD"))
             ],
@@ -78,26 +77,30 @@ impl SetConfig {
             timestamp_tolerance: 20 * 60 // 20 minutes tolerance
         };
         
-        if let Some(current_config) = supplier.get_config_or_none() {
+        let config_needs_update = if let Some(current_config) = supplier.get_config_or_none() {
             if current_config == supplier_config {
                 odra_cli::log("StyksBlockySupplier configuration is already set to the desired values.");
-                return Ok(());
+                false
             } else {
                 odra_cli::log("Current configuration does not match the desired values.");
+                true
             }
         } else {
             odra_cli::log("StyksBlockySupplier configuration is not set, setting it now.");
-        }
+            true
+        };
 
-        env.set_gas(cspr!(3.5));
-        supplier.set_config(supplier_config);
-        odra_cli::log("Configuration set successfully for StyksBlockySupplier contract.");
+        if config_needs_update {
+            env.set_gas(cspr!(3.5));
+            supplier.set_config(supplier_config);
+            odra_cli::log("Configuration set successfully for StyksBlockySupplier contract.");
+        }
 
         // Auto-bootstrap key ring with current public key (enables rotation immediately)
         let keys = supplier.get_signer_keys();
         if keys.is_empty() {
             odra_cli::log("Auto-bootstrapping key ring with current public key.");
-            env.set_gas(cspr!(2));
+            env.set_gas(cspr!(3));
             supplier.add_signer_key(Bytes::from(public_key), 0, 0);
             odra_cli::log("Key ring bootstrapped successfully.");
         } else {
@@ -108,7 +111,7 @@ impl SetConfig {
         let expected_fn = supplier.get_expected_function();
         if expected_fn.is_empty() {
             odra_cli::log("Setting expected function name to 'priceFunc' (default).");
-            env.set_gas(cspr!(1));
+            env.set_gas(cspr!(2.5));
             supplier.set_expected_function("priceFunc".to_string());
             odra_cli::log("Expected function name set successfully.");
         } else {

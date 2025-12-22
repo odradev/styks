@@ -39,6 +39,7 @@ pub enum StyksBlockySupplerError {
     BadFunctionName = 46402,
     TimestampNotMonotonic = 46403,
     ContractPaused = 46404,
+    NoSignerKeys = 46405,
 }
 
 impl From<VerificationError> for StyksBlockySupplerError {
@@ -91,17 +92,12 @@ impl StyksBlockySupplerRole {
 #[odra::odra_type]
 pub struct StyksBlockySupplerConfig {
     pub wasm_hash: String,
-    pub public_key: Bytes,
     pub coingecko_feed_ids: Vec<(String, PriceFeedId)>, // (coingecko_id, price_feed_id)
     pub price_feed_address: Address,
     pub timestamp_tolerance: u64,
 }
 
 impl StyksBlockySupplerConfig {
-    pub fn public_key(&self) -> &[u8] {
-        &self.public_key
-    }
-
     pub fn price_feed_id(&self, coingecko_id: &str) -> Option<PriceFeedId> {
         self.coingecko_feed_ids
             .iter()
@@ -234,15 +230,12 @@ impl StyksBlockySupplier {
         let config = self.get_config();
         let now = self.env().get_block_time_secs();
 
-        // 2. Signature verification with key ring support
+        // 2. Signature verification with key ring
         let keys = self.signer_keys.get_or_default();
         if keys.is_empty() {
-            // Backward compatibility: use config.public_key
-            self.assert_valid_signature(config.public_key(), &signature, &data);
-        } else {
-            // Use key ring
-            self.assert_valid_signature_any(&keys, &signature, &data, now);
+            self.env().revert(StyksBlockySupplerError::NoSignerKeys);
         }
+        self.assert_valid_signature_any(&keys, &signature, &data, now);
 
         // 3. Decode the data
         let claims = match BlockyClaims::decode_fn_call_claims(&data) {
@@ -454,22 +447,6 @@ impl StyksBlockySupplier {
         }
     }
 
-    fn assert_valid_signature(
-        &self,
-        public_key: &[u8],
-        signature: &[u8],
-        data: &[u8],
-    ) {
-        let result = styks_blocky_parser::verify::verify_signature(
-            public_key,
-            signature,
-            data,
-        );
-        if let Err(error) = result {
-            self.env().revert(StyksBlockySupplerError::from(error));
-        }
-    }
-
     fn assert_valid_signature_any(
         &self,
         keys: &[SignerKeyRecord],
@@ -539,7 +516,6 @@ mod tests {
         let mut supplier = StyksBlockySupplier::deploy(&env, NoArgs);
         let supplier_config = StyksBlockySupplerConfig {
             wasm_hash,
-            public_key: Bytes::from(blocky_output.public_key_bytes()),
             coingecko_feed_ids: vec![
                 (String::from("Gate_CSPR_USD"), String::from("CSPRUSD"))
             ],
@@ -548,6 +524,10 @@ mod tests {
         };
         supplier.grant_role(&StyksBlockySupplerRole::ConfigManager.role_id(), &admin);
         supplier.set_config(supplier_config.clone());
+
+        // Add the signer key to the key ring (required for signature verification).
+        let public_key = Bytes::from(blocky_output.public_key_bytes());
+        supplier.add_signer_key(public_key, 0, 0);
 
         // Allow StyksBlockySupplier to add prices to StyksPriceFeed.
         let role = StyksPriceFeedRole::PriceSupplier.role_id();

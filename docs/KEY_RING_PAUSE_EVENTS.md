@@ -46,14 +46,14 @@ This enhancement adds:
 
 ```
 StyksBlockySupplerConfig {
-    public_key: Bytes,  // Single pinned key - no rotation support
+    public_key: Bytes,  // Single pinned key - no rotation support (REMOVED)
     ...
 }
 ```
 
 **Issues:**
 
-1. **No Zero-Downtime Rotation**: Blocky AS restarts generate new keys. Old key in config means all price reports rejected until `set_config()` is called.
+1. **No Zero-Downtime Rotation**: Blocky AS restarts generate new keys. Old single key in config means all price reports rejected until `set_config()` is called.
 
 2. **No Emergency Revocation**: If a key is compromised, the only option is full config update, which is slow and requires the ConfigManager.
 
@@ -94,13 +94,11 @@ Roles:
 
 ### Key Design Decisions
 
-1. **New Storage Fields Only**: Does NOT modify `StyksBlockySupplerConfig` serialization. Adds separate storage variables for upgrade safety.
+1. **Key Ring Required**: The key ring must be populated with at least one valid signer key. The `public_key` field was removed from `StyksBlockySupplerConfig`.
 
-2. **Backward Compatible**: Empty key ring falls back to `config.public_key`.
+2. **Role Separation**: Guardian role handles emergencies; ConfigManager handles routine operations.
 
-3. **Role Separation**: Guardian role handles emergencies; ConfigManager handles routine operations.
-
-4. **Time-Bounded Keys**: Keys can have `not_before` and `not_after` timestamps for scheduled rotation.
+3. **Time-Bounded Keys**: Keys can have `not_before` and `not_after` timestamps for scheduled rotation.
 
 ---
 
@@ -132,8 +130,8 @@ fn is_active(&self, now: u64) -> bool {
 
 **Signature Verification Flow:**
 
-1. If key ring is empty, use `config.public_key` (backward compatibility)
-2. If key ring has entries, try each active key until one verifies
+1. If key ring is empty, revert with `NoSignerKeys`
+2. Try each active key in the ring until one verifies
 3. If no key verifies, revert with `BadSignature`
 
 ### Guardian Role
@@ -269,6 +267,7 @@ self.last_seen_timestamp.set(&price_feed_id, output.timestamp);
 | 46402 | `BadFunctionName` | Claims function name mismatch |
 | 46403 | `TimestampNotMonotonic` | Timestamp not newer than last seen |
 | 46404 | `ContractPaused` | Contract is paused |
+| 46405 | `NoSignerKeys` | Key ring is empty |
 
 ### Existing Errors (unchanged)
 
@@ -319,25 +318,49 @@ self.last_seen_timestamp.set(&price_feed_id, output.timestamp);
 
 ### Upgrade Existing Deployment
 
-Since new storage fields are added without modifying existing storage layout:
+**CRITICAL**: After upgrading, the key ring MUST be bootstrapped BEFORE any price reports will work. The `public_key` field was removed from `StyksBlockySupplerConfig` - the key ring is now the ONLY source of valid signer keys.
+
+**If you forget to bootstrap the key ring, `report_signed_prices()` will revert with `NoSignerKeys` (error code 46405).**
+
+Storage layout is additive (new fields appended), so upgrade is safe:
+- `signer_keys: Var<Vec<SignerKeyRecord>>` (NEW - starts empty)
+- `is_paused: Var<bool>` (NEW - defaults to false)
+- `last_seen_timestamp: Mapping<PriceFeedId, u64>` (NEW)
+- `expected_function: Var<String>` (NEW)
+
+#### Migration Steps
 
 1. **Build new WASM:**
    ```bash
-   cargo odra build
+   cargo odra build -b casper -c StyksBlockySupplier
    ```
 
-2. **Upgrade contract** using Casper upgrade mechanism
+2. **Upgrade contract** via Casper upgrade mechanism or CLI
 
-3. **Bootstrap key ring** (if not already done):
-   ```rust
-   // Call add_signer_key with current public key
-   supplier.add_signer_key(current_public_key, 0, 0);
+3. **Bootstrap key ring IMMEDIATELY:**
+   ```bash
+   # Add your existing Blocky public key to the key ring
+   # Parameters: public_key, not_before (0 = immediate), not_after (0 = no expiry)
+   supplier.add_signer_key(existing_blocky_public_key, 0, 0);
    ```
 
-4. **Grant Guardian role:**
-   ```rust
-   supplier.grant_role(GUARDIAN_ROLE_ID, guardian_address);
+   Or via CLI:
+   ```bash
+   cargo run --bin styks-cli -- run SetConfig
    ```
+   The SetConfig scenario auto-bootstraps the key ring if empty.
+
+4. **Grant Guardian role** (recommended):
+   ```bash
+   cargo run --bin styks-cli -- run SetPermissions \
+     --guardian-address "account-hash-<GUARDIAN_ACCOUNT_HASH>"
+   ```
+
+5. **Verify price reporting works** - submit a test price report
+
+#### What Happens If You Forget Step 3?
+
+The contract will revert ALL `report_signed_prices()` calls with `NoSignerKeys` (46405) until the key ring is populated. This is intentional - the key ring is now mandatory for security.
 
 ---
 
@@ -434,12 +457,12 @@ For any emergency requiring immediate halt:
 
 ### Risk: All Keys Revoked/Expired
 
-**Impact:** No valid keys means no price reports accepted
+**Impact:** No valid keys means no price reports accepted (reverts with `NoSignerKeys` if empty, or `BadSignature` if all keys inactive)
 
 **Mitigation:**
 - Always add new key before removing/expiring old key
-- Key ring falls back to `config.public_key` if empty
 - Monitor key expiry times
+- Set up alerts for key ring becoming empty or all keys inactive
 
 ### Risk: Key Ring Storage Growth
 
@@ -471,35 +494,32 @@ For any emergency requiring immediate halt:
 
 5. **Defense in Depth**: Multiple layers - key validation, function name check, timestamp monotonicity, pause gate
 
-6. **Backward Compatible**: Existing deployments continue working; features are opt-in
+6. **Simplified Config**: `public_key` removed from config; key ring is the single source of truth for signer keys
 
 7. **Role Separation**: Routine operations (ConfigManager) separated from emergency response (Guardian)
 
 ---
 
-## Backward Compatibility
+## Storage Layout
 
-### Storage Compatibility
+### Storage Variables
 
-- **New storage variables** added alongside existing `config`:
-  - `signer_keys: Var<Vec<SignerKeyRecord>>`
-  - `is_paused: Var<bool>`
-  - `last_seen_timestamp: Mapping<PriceFeedId, u64>`
-  - `expected_function: Var<String>`
+- `config: Var<StyksBlockySupplerConfig>` - main configuration (without `public_key`)
+- `signer_keys: Var<Vec<SignerKeyRecord>>` - key ring (required)
+- `is_paused: Var<bool>` - circuit breaker state
+- `last_seen_timestamp: Mapping<PriceFeedId, u64>` - anti-replay tracking
+- `expected_function: Var<String>` - function name enforcement
 
-- **Existing storage unchanged**: `config: Var<StyksBlockySupplerConfig>` layout preserved
+### Defaults
 
-### Behavioral Compatibility
-
-- **Empty key ring**: Falls back to `config.public_key`
+- **Empty key ring**: Reverts with `NoSignerKeys` (key ring must be populated)
 - **Empty expected_function**: Function name not enforced
 - **is_paused default**: `false` (not paused)
 - **last_seen_timestamp default**: `0` (any timestamp accepted initially)
 
-### API Compatibility
+### API
 
-- **Existing entrypoints**: Signatures unchanged
-- **`report_signed_prices`**: Same parameters, enhanced validation
+- **`report_signed_prices`**: Same parameters, requires populated key ring
 
 ---
 
