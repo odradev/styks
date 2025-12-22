@@ -214,7 +214,7 @@ impl Updater {
             self.price_feed_id, price, timestamp
         ));
 
-        self.env.set_gas(cspr!(4.0));
+        self.env.set_gas(cspr!(10.0));
 
         // Try fast path first (cached signer)
         if let Some(ref signer_id) = self.cached_signer_id {
