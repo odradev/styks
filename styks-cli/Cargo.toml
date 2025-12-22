@@ -11,6 +11,8 @@ odra = { workspace = true }
 odra-cli = { workspace = true }
 ureq = "3.0.12"
 serde_json = "1.0.140"
+base64 = "0.22"
+hex = "0.4"
 
 [[bin]]
 name = "styks-cli"

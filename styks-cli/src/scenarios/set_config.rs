@@ -1,9 +1,14 @@
-use odra::{casper_types::{bytesrepr::Bytes, Block}, contract_def::HasIdent, host::HostEnv};
+use odra::{contract_def::HasIdent, host::HostEnv};
 use odra_cli::{
-    cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, CommandArg, ContractProvider, DeployedContractsContainer
+    cspr,
+    scenario::{Args, Error, Scenario, ScenarioMetadata},
+    CommandArg, ContractProvider, DeployedContractsContainer,
 };
-use styks_blocky_parser::{block_output_for_tests, blocky_claims::BlockyClaims, wasm_hash_for_tests};
-use styks_contracts::{styks_blocky_supplier::{StyksBlockySupplerConfig, StyksBlockySupplier}, styks_price_feed::{StyksPriceFeed, StyksPriceFeedConfig}};
+use styks_blocky_parser::{block_output_for_tests, wasm_hash_for_tests};
+use styks_contracts::{
+    styks_blocky_supplier::{MeasurementRule, StyksBlockySupplier, StyksBlockySupplierConfig},
+    styks_price_feed::{StyksPriceFeed, StyksPriceFeedConfig},
+};
 
 pub struct SetConfig;
 
@@ -13,7 +18,9 @@ impl ScenarioMetadata for SetConfig {
 }
 
 impl Scenario for SetConfig {
-    fn args(&self) -> Vec<CommandArg> { vec![] }
+    fn args(&self) -> Vec<CommandArg> {
+        vec![]
+    }
 
     fn run(
         &self,
@@ -28,7 +35,11 @@ impl Scenario for SetConfig {
 }
 
 impl SetConfig {
-    fn configure_feed(&self, env: &HostEnv, container: &DeployedContractsContainer) -> Result<(), Error> {
+    fn configure_feed(
+        &self,
+        env: &HostEnv,
+        container: &DeployedContractsContainer,
+    ) -> Result<(), Error> {
         // Configuring the StyksPriceFeed contract.
         odra_cli::log("Setting configuration for StyksPriceFeed contract.");
         let mut feed = container.contract_ref::<StyksPriceFeed>(&env)?;
@@ -44,7 +55,7 @@ impl SetConfig {
             if current_config == config {
                 odra_cli::log("Configuration is already set to the desired values.");
                 return Ok(());
-            }    
+            }
         }
         odra_cli::log("Current configuration does not match the desired values.");
         env.set_gas(cspr!(4));
@@ -61,26 +72,40 @@ impl SetConfig {
         // Configuring the StyksBlockySupplier contract.
         odra_cli::log("Setting configuration for StyksBlockySupplier contract.");
         let mut supplier = container.contract_ref::<StyksBlockySupplier>(&env)?;
-        let feed_addr = container.address_by_name(&StyksPriceFeed::ident()).unwrap();
+        let feed_addr = container
+            .address_by_name(&StyksPriceFeed::ident())
+            .unwrap();
 
         // Load blocky configuration.
         let wasm_hash = wasm_hash_for_tests();
         let blocky_output = block_output_for_tests();
-        let public_key = blocky_output.public_key_bytes();
 
-        let supplier_config = StyksBlockySupplerConfig {
+        // Extract measurement from the attestation for the allowlist.
+        let enclave_att = &blocky_output
+            .enclave_attested_application_public_key
+            .enclave_attestation;
+        let (platform, code, _pubkey) =
+            styks_blocky_parser::nitro::extract_measurement_from_attestation(enclave_att)
+                .expect("Failed to extract measurement from attestation");
+
+        let supplier_config = StyksBlockySupplierConfig {
             wasm_hash,
-            public_key: Bytes::from(public_key),
-            coingecko_feed_ids: vec![
-                (String::from("Gate_CSPR_USD"), String::from("CSPRUSD"))
-            ],
+            expected_function: String::from("priceFunc"),
+            allowed_measurements: vec![MeasurementRule {
+                platform: platform.clone(),
+                code: code.clone(),
+            }],
+            coingecko_feed_ids: vec![(String::from("Gate_CSPR_USD"), String::from("CSPRUSD"))],
             price_feed_address: feed_addr,
-            timestamp_tolerance: 20 * 60 // 20 minutes tolerance
+            timestamp_tolerance: 20 * 60, // 20 minutes tolerance
+            signer_ttl_secs: 24 * 60 * 60, // 24 hours TTL for signers
         };
-        
+
         if let Some(current_config) = supplier.get_config_or_none() {
             if current_config == supplier_config {
-                odra_cli::log("StyksBlockySupplier configuration is already set to the desired values.");
+                odra_cli::log(
+                    "StyksBlockySupplier configuration is already set to the desired values.",
+                );
                 return Ok(());
             } else {
                 odra_cli::log("Current configuration does not match the desired values.");
@@ -92,7 +117,7 @@ impl SetConfig {
         env.set_gas(cspr!(3.5));
         supplier.set_config(supplier_config);
         odra_cli::log("Configuration set successfully for StyksBlockySupplier contract.");
-        
+
         Ok(())
     }
 }

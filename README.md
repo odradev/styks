@@ -15,6 +15,7 @@ Styks is deployed on the Casper Testnet.
 
 Recent changes:
 
+- 2025/12/22 - Measurement-Anchored Model implemented for `StyksBlockySupplier`.
 - 2025/08/18 - Heartbeat interval changed to 30 minutes.
 - 2025/08/17 - `StyksBlockySupplier` deployed to the Casper Testnet.
 - 2025/08/07 - `StyksPriceFeed` deployed to the Casper Testnet.
@@ -25,6 +26,13 @@ Recent changes:
 Below you can find detailed description of the Styks project.
 
 [TOC]
+
+## Documentation
+
+- [BUILD.md](BUILD.md) - Prerequisites and build instructions
+- [docs/CHANGELOG.md](docs/CHANGELOG.md) - Version history and changes
+- [docs/measurement-anchored-model.md](docs/measurement-anchored-model.md) - Measurement-Anchored Model architecture
+- [docs/nitro-attestation-format.md](docs/nitro-attestation-format.md) - AWS Nitro attestation format details
 
 ## Building
 
@@ -234,30 +242,42 @@ Configuration of the contract:
 ## StyksBlockySupplier Smart Contract
 
 The `StyksBlockySupplier` smart contract is a bridge between the Blocky server and
-the `StyksPriceFeed` smart contract. It is responsible for receiving the signed
-prices from the `PriceProducer` and posting them to the `StyksPriceFeed` after
-verifying authenticity and freshness.
+the `StyksPriceFeed` smart contract. It uses a **Measurement-Anchored Model** where
+signer keys are accepted only when proven via verified AWS Nitro attestation
+matching an on-chain measurement allowlist.
 
-It is configured as follows:
+> For detailed architecture documentation, see [docs/measurement-anchored-model.md](docs/measurement-anchored-model.md).
+
+### Configuration
 
 - `wasm_hash` - hash of the Blocky's guest program (a WASM file).
-- `public_key` - public key used to verify the signature of the prices.
-- `price_feed_address` - address of the `StyksPriceFeed` contract,
-  where the prices are posted.
+- `expected_function` - expected function name in the guest program (e.g., "priceFunc").
+- `allowed_measurements` - list of allowed enclave measurements (platform + PCR code).
+- `price_feed_address` - address of the `StyksPriceFeed` contract.
 - `coingecko_feed_ids` - list of mappings between Blocky/CoinGecko identifiers and
   on-chain PriceFeedIds. Example: `("Gate_CSPR_USD", "CSPRUSD")`.
 - `timestamp_tolerance` - allowed drift (in seconds) between the reported timestamp
   and the current on-chain time.
+- `signer_ttl_secs` - time-to-live for cached signers (0 = no expiry).
 
-Security roles:
+### Security Roles
 
-- `AdminRole` - manages roles of other accounts,
+- `AdminRole` - manages roles of other accounts.
 - `ConfigManagerRole` - manages configuration of the contract.
+- `GuardianRole` - can pause/unpause, revoke signers, and register signers manually.
 
-Note:
-- Anyone can submit signed data via `report_signed_prices`, but only data that
-  is correctly signed with `public_key`, produced by the expected `wasm_hash`,
-  and whose timestamp is within `timestamp_tolerance` will be forwarded to the feed.
+### Key Entrypoints
+
+- `register_signer_manual(pubkey, platform, code)` - Register a signer (Guardian/Admin only).
+- `report_prices(ta, signer_id, attestation)` - Submit prices using cached signer (fast path).
+- `pause()` / `unpause()` - Emergency circuit breaker.
+- `revoke_signer(signer_id)` - Revoke a compromised signer.
+- `get_signer(signer_id)` - Query cached signer info.
+
+### Notes
+
+- Signers are cached after attestation verification for efficient subsequent updates.
+- Replay protection: each price feed tracks the last accepted timestamp.
 - The `StyksBlockySupplier` contract must have the `PriceSupplierRole` assigned
   in the `StyksPriceFeed` contract in order to be able to post the prices there.
 

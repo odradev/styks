@@ -3,7 +3,7 @@ use odra::host::HostEnv;
 use odra_cli::{
     cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, ContractProvider, DeployedContractsContainer
 };
-use styks_contracts::{styks_blocky_supplier::{StyksBlockySupplerRole, StyksBlockySupplier, StyksBlockySupplierHostRef}, styks_price_feed::{StyksPriceFeed, StyksPriceFeedHostRef, StyksPriceFeedRole}};
+use styks_contracts::{styks_blocky_supplier::{StyksBlockySupplierRole, StyksBlockySupplier, StyksBlockySupplierHostRef}, styks_price_feed::{StyksPriceFeed, StyksPriceFeedHostRef, StyksPriceFeedRole}};
 
 pub struct SetPermissions;
 
@@ -26,7 +26,7 @@ impl Scenario for SetPermissions {
         // Grant all Config roles to the deployer.
         odra_cli::log(format!("Setting permissions for address: {:?}", deployer));
         set_role_feed(&mut feed, &StyksPriceFeedRole::ConfigManager, &deployer, env)?;
-        set_role_supplier(&mut supplier, &StyksBlockySupplerRole::ConfigManager, &deployer, env)?;
+        set_role_supplier(&mut supplier, &StyksBlockySupplierRole::ConfigManager, &deployer, env)?;
 
         // Grant PriceSupplier role to the account installed on the server.
         let address = "account-hash-915691433d2c86c6145e46e3c5f3d266d87be6448de5dc8a4c4e710384372916";
@@ -66,7 +66,7 @@ fn set_role_feed(
 
 fn set_role_supplier(
     contract: &mut StyksBlockySupplierHostRef,
-    role: &StyksBlockySupplerRole,
+    role: &StyksBlockySupplierRole,
     address: &Address,
     env: &HostEnv,
 ) -> Result<(), Error> {

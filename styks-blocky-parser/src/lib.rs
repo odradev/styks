@@ -7,6 +7,8 @@ extern crate alloc;
 use sha3::{Digest, Sha3_512};
 
 pub mod blocky_claims;
+pub mod transitive_attestation;
+pub mod nitro;
 
 #[cfg(feature = "std")]
 pub mod blocky_output;

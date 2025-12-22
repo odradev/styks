@@ -1,14 +1,17 @@
-use core::panic;
 use std::path::Path;
 
 use odra::{casper_types::bytesrepr::Bytes, host::HostEnv};
 use odra_cli::{
-    cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, CommandArg, ContractProvider, DeployedContractsContainer
+    cspr,
+    scenario::{Args, Error, Scenario, ScenarioMetadata},
+    CommandArg, ContractProvider, DeployedContractsContainer,
 };
 use styks_blocky_parser::{blocky_claims::BlockyClaims, blocky_output::BlockyOutput};
-use styks_contracts::{styks_blocky_supplier::{StyksBlockySupplier, StyksBlockySupplierHostRef}, styks_price_feed::{StyksPriceFeed, StyksPriceFeedHostRef}};
+use styks_contracts::{
+    styks_blocky_supplier::{StyksBlockySupplier, StyksBlockySupplierHostRef},
+    styks_price_feed::{StyksPriceFeed, StyksPriceFeedHostRef},
+};
 use styks_core::heartbeat::Heartbeat;
-
 
 pub struct UpdatePrice;
 impl ScenarioMetadata for UpdatePrice {
@@ -29,7 +32,6 @@ impl Scenario for UpdatePrice {
     ) -> core::result::Result<(), Error> {
         let mut updater = Updater::new(env.clone(), container)?;
         updater.start();
-        // updater.report_price();
         Ok(())
     }
 }
@@ -41,6 +43,8 @@ pub struct Updater {
     coingecko_client: CoinGeckoClient,
     price_feed_id: String,
     use_blocky_supplier: bool,
+    /// Cached signer ID for fast-path price reporting.
+    cached_signer_id: Option<Bytes>,
 }
 
 impl Updater {
@@ -54,16 +58,23 @@ impl Updater {
             supplier_contract,
             coingecko_client,
             price_feed_id: String::from("CSPRUSD"),
-            use_blocky_supplier: true
+            use_blocky_supplier: true,
+            cached_signer_id: None,
         })
     }
 
     pub fn start(&mut self) {
         odra_cli::log("[x] Starting price update loop.");
 
-        // Fetch the current configuration from the contract.        
+        // Fetch the current configuration from the contract.
         let config = self.feed_contract.get_config();
         odra_cli::log(format!("Current config: {:?}", config));
+
+        // On startup, register the signer from the first Blocky call.
+        odra_cli::log("[x] Registering signer on startup...");
+        if let Err(e) = self.ensure_signer_registered() {
+            odra_cli::log(format!("Warning: Failed to register signer on startup: {:?}", e));
+        }
 
         loop {
             odra_cli::log("[x] Starting loop.");
@@ -74,38 +85,35 @@ impl Updater {
             // Load current time.
             let current_time = current_timestamp_secs();
             odra_cli::log(format!("Current time:        {}", current_time));
-            
+
             // Load Heartbeat state.
             let heartbeat = Heartbeat::new(
                 current_time,
                 config.heartbeat_interval,
                 config.heartbeat_tolerance,
-            ).unwrap();
+            )
+            .unwrap();
             let heartbeat_status = heartbeat.current_state();
             let missed_heartbeat = heartbeat.count_missed_heartbeats_since(last_heartbeat);
-            // odra_cli::log(format!("Heartbeat status:\n{:#?}", heartbeat_status));
             odra_cli::log(format!(
                 "Missed heartbeats since last heartbeat: {}",
                 missed_heartbeat
             ));
-            
+
             // If we're in the current heartbeat window, update the price.
             if let Some(current_window) = heartbeat_status.current {
                 if current_window.middle == last_heartbeat {
                     odra_cli::log("Already updated price in this heartbeat window.");
                 } else {
                     self.report_price();
-                }    
+                }
             }
 
-             // Load current time.
+            // Load current time.
             let current_time = current_timestamp_secs();
             odra_cli::log(format!("Current time: {}", current_time));
             let next_heartbeat_time = heartbeat_status.next.middle;
-            odra_cli::log(format!(
-                "Next heartbeat time: {}",
-                next_heartbeat_time
-            ));
+            odra_cli::log(format!("Next heartbeat time: {}", next_heartbeat_time));
             let sleep_time = next_heartbeat_time.saturating_sub(current_time);
             odra_cli::log(format!(
                 "Sleeping for {} seconds until next heartbeat.",
@@ -115,6 +123,44 @@ impl Updater {
             odra_cli::log("[x] Loop iteration completed.");
             odra_cli::log("--------------------------------------------------");
         }
+    }
+
+    /// Ensures a signer is registered, re-registering if necessary.
+    fn ensure_signer_registered(&mut self) -> Result<(), String> {
+        // Call Blocky to get the attestation.
+        self.make_blocky_call();
+        let output = self.read_blocky_output();
+
+        // Extract measurement from the attestation.
+        let enclave_att = &output
+            .enclave_attested_application_public_key
+            .enclave_attestation;
+        let (platform, code, _pubkey) =
+            styks_blocky_parser::nitro::extract_measurement_from_attestation(enclave_att)
+                .map_err(|e| format!("Failed to extract measurement: {:?}", e))?;
+
+        // Get the public key.
+        let pubkey = Bytes::from(output.public_key_bytes());
+
+        odra_cli::log(format!(
+            "Registering signer with platform={}, code={}...",
+            platform,
+            &code[..20] // Show first 20 chars of measurement code
+        ));
+
+        // Register the signer manually (we verify attestation off-chain).
+        self.env.set_gas(cspr!(3.0));
+        let signer_id = self
+            .supplier_contract
+            .register_signer_manual(pubkey, platform, code);
+
+        odra_cli::log(format!(
+            "Signer registered successfully. Signer ID: 0x{}",
+            hex::encode(&signer_id[..8]) // Show first 8 bytes
+        ));
+
+        self.cached_signer_id = Some(signer_id);
+        Ok(())
     }
 
     pub fn get_realtime_price(&self) -> u64 {
@@ -137,9 +183,7 @@ impl Updater {
         }
     }
 
-    pub fn report_price_direct_to_feed(
-        &mut self,
-    ) {
+    pub fn report_price_direct_to_feed(&mut self) {
         let current_time = current_timestamp_secs();
         let price = self.get_realtime_price();
         odra_cli::log(format!(
@@ -148,7 +192,9 @@ impl Updater {
         ));
         // Send price record to the contract.
         self.env.set_gas(cspr!(2.5));
-        let result = self.feed_contract.try_add_to_feed(vec![(self.price_feed_id.clone(), price)]);
+        let result = self
+            .feed_contract
+            .try_add_to_feed(vec![(self.price_feed_id.clone(), price)]);
         match result {
             Ok(_) => odra_cli::log("Price updated successfully."),
             Err(e) => odra_cli::log(format!("Failed to update price: {:?}.", e)),
@@ -160,8 +206,16 @@ impl Updater {
         odra_cli::log("Calling Blocky service to report price.");
         self.make_blocky_call();
         let output = self.read_blocky_output();
+
+        // Get the transitive attestation.
+        use base64::prelude::*;
+        let ta_b64 = &output.transitive_attested_function_call.transitive_attestation;
+        let ta_bytes = BASE64_STANDARD
+            .decode(ta_b64)
+            .expect("Failed to decode transitive attestation");
+
+        // Parse claims for logging.
         let ta = output.ta();
-        let signature = ta.signature_bytes();
         let data = ta.data();
         let claims = BlockyClaims::decode_fn_call_claims(&data).unwrap();
         let output_value = claims.output().unwrap();
@@ -172,14 +226,43 @@ impl Updater {
             self.price_feed_id, price, timestamp
         ));
 
+        // Try fast path first (with cached signer).
         self.env.set_gas(cspr!(4.0));
-        let result = self.supplier_contract.try_report_signed_prices(
-            Bytes::from(signature),
-            Bytes::from(data),
+        let result = self.supplier_contract.try_report_prices(
+            Bytes::from(ta_bytes.clone()),
+            self.cached_signer_id.clone(),
+            None, // No enclave attestation for fast path
         );
+
         match result {
-            Ok(_) => odra_cli::log("Price updated successfully."),
-            Err(e) => odra_cli::log(format!("Failed to update price: {:?}.", e)),
+            Ok(_) => {
+                odra_cli::log("Price updated successfully via fast path.");
+            }
+            Err(e) => {
+                odra_cli::log(format!(
+                    "Fast path failed: {:?}. Attempting to re-register signer...",
+                    e
+                ));
+
+                // Re-register signer and retry.
+                if let Err(reg_err) = self.ensure_signer_registered() {
+                    odra_cli::log(format!("Failed to re-register signer: {:?}", reg_err));
+                    return;
+                }
+
+                // Retry with new signer.
+                self.env.set_gas(cspr!(4.0));
+                let retry_result = self.supplier_contract.try_report_prices(
+                    Bytes::from(ta_bytes),
+                    self.cached_signer_id.clone(),
+                    None,
+                );
+
+                match retry_result {
+                    Ok(_) => odra_cli::log("Price updated successfully after re-registration."),
+                    Err(e) => odra_cli::log(format!("Failed to update price after retry: {:?}.", e)),
+                }
+            }
         }
     }
 
@@ -201,10 +284,9 @@ impl Updater {
         let path = Path::new(manifest_dir).join("../blocky-guest/tmp/out.json");
         BlockyOutput::try_from_file(path).unwrap()
     }
-        
 }
 
-// --- Coingecko clinet ---
+// --- Coingecko client ---
 
 pub struct CoinGeckoClient {
     api_key: String,
@@ -234,13 +316,11 @@ impl CoinGeckoClient {
         match response {
             Ok(mut resp) => {
                 let body = resp.body_mut().read_to_string().unwrap();
-                let json: serde_json::Value = serde_json::from_str(&body)
-                    .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+                let json: serde_json::Value =
+                    serde_json::from_str(&body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
                 if let Some(price) = json[currency]["usd"].as_f64() {
                     return Ok(price);
                 } else {
-                    // odra_cli::log("Price not found in response.");
-                    // odra_cli::log(format!("Response: {}", json));
                     return Err("Price not found in response".to_string());
                 }
             }
@@ -253,7 +333,8 @@ fn current_timestamp_secs() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     let start = SystemTime::now();
-    let timestamp = start.duration_since(UNIX_EPOCH)
+    let timestamp = start
+        .duration_since(UNIX_EPOCH)
         .expect("Time went backwards")
         .as_secs();
     timestamp

@@ -11,6 +11,9 @@ styks-blocky-parser = { path = "../styks-blocky-parser", default-features = fals
 
 [dev-dependencies]
 odra-test = { workspace = true }
+base64 = "0.22"
+# Enable std feature for styks-blocky-parser in tests (for BlockyOutput, etc.)
+styks-blocky-parser = { path = "../styks-blocky-parser", features = ["std"] }
 
 [build-dependencies]
 odra-build = { workspace = true }
