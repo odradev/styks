@@ -1,8 +1,8 @@
-use odra::{casper_types::{bytesrepr::Bytes, Block}, contract_def::HasIdent, host::HostEnv};
+use odra::{casper_types::bytesrepr::Bytes, contract_def::HasIdent, host::HostEnv};
 use odra_cli::{
     cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, CommandArg, ContractProvider, DeployedContractsContainer
 };
-use styks_blocky_parser::{block_output_for_tests, blocky_claims::BlockyClaims, wasm_hash_for_tests};
+use styks_blocky_parser::{block_output_for_tests, wasm_hash_for_tests};
 use styks_contracts::{styks_blocky_supplier::{StyksBlockySupplerConfig, StyksBlockySupplier}, styks_price_feed::{StyksPriceFeed, StyksPriceFeedConfig}};
 
 pub struct SetConfig;
@@ -70,7 +70,7 @@ impl SetConfig {
 
         let supplier_config = StyksBlockySupplerConfig {
             wasm_hash,
-            public_key: Bytes::from(public_key),
+            public_key: Bytes::from(public_key.clone()),
             coingecko_feed_ids: vec![
                 (String::from("Gate_CSPR_USD"), String::from("CSPRUSD"))
             ],
@@ -92,7 +92,29 @@ impl SetConfig {
         env.set_gas(cspr!(3.5));
         supplier.set_config(supplier_config);
         odra_cli::log("Configuration set successfully for StyksBlockySupplier contract.");
-        
+
+        // Auto-bootstrap key ring with current public key (enables rotation immediately)
+        let keys = supplier.get_signer_keys();
+        if keys.is_empty() {
+            odra_cli::log("Auto-bootstrapping key ring with current public key.");
+            env.set_gas(cspr!(2));
+            supplier.add_signer_key(Bytes::from(public_key), 0, 0);
+            odra_cli::log("Key ring bootstrapped successfully.");
+        } else {
+            odra_cli::log("Key ring already has keys, skipping bootstrap.");
+        }
+
+        // Default expected function name to 'priceFunc' for new deployments
+        let expected_fn = supplier.get_expected_function();
+        if expected_fn.is_empty() {
+            odra_cli::log("Setting expected function name to 'priceFunc' (default).");
+            env.set_gas(cspr!(1));
+            supplier.set_expected_function("priceFunc".to_string());
+            odra_cli::log("Expected function name set successfully.");
+        } else {
+            odra_cli::log(format!("Expected function already set to: {}", expected_fn));
+        }
+
         Ok(())
     }
 }

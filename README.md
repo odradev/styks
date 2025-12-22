@@ -15,6 +15,7 @@ Styks is deployed on the Casper Testnet.
 
 Recent changes:
 
+- 2025/12/22 - Added key ring, pause circuit breaker, Guardian role, and events to `StyksBlockySupplier`. See [docs/KEY_RING_PAUSE_EVENTS.md](docs/KEY_RING_PAUSE_EVENTS.md).
 - 2025/08/18 - Heartbeat interval changed to 30 minutes.
 - 2025/08/17 - `StyksBlockySupplier` deployed to the Casper Testnet.
 - 2025/08/07 - `StyksPriceFeed` deployed to the Casper Testnet.
@@ -252,12 +253,25 @@ It is configured as follows:
 Security roles:
 
 - `AdminRole` - manages roles of other accounts,
-- `ConfigManagerRole` - manages configuration of the contract.
+- `ConfigManagerRole` - manages configuration of the contract,
+- `GuardianRole` - emergency operations (pause/unpause, key revocation).
+
+Advanced security features:
+
+- **Key Ring**: Multi-key allowlist with time-bounded validity for zero-downtime key rotation.
+- **Pause Circuit Breaker**: Immediate halt capability for emergencies.
+- **On-Chain Events**: Audit trail for key management and pause operations.
+- **Function Name Enforcement**: Validates the Blocky guest function name.
+- **Monotonic Timestamp**: Anti-replay protection per price feed.
+
+For detailed documentation on these features, see [docs/KEY_RING_PAUSE_EVENTS.md](docs/KEY_RING_PAUSE_EVENTS.md).
 
 Note:
 - Anyone can submit signed data via `report_signed_prices`, but only data that
-  is correctly signed with `public_key`, produced by the expected `wasm_hash`,
-  and whose timestamp is within `timestamp_tolerance` will be forwarded to the feed.
+  is correctly signed with an active key in the key ring (or `public_key` if ring is empty),
+  produced by the expected `wasm_hash`, matches the expected function name,
+  has a monotonically increasing timestamp, and whose timestamp is within
+  `timestamp_tolerance` will be forwarded to the feed.
 - The `StyksBlockySupplier` contract must have the `PriceSupplierRole` assigned
   in the `StyksPriceFeed` contract in order to be able to post the prices there.
 

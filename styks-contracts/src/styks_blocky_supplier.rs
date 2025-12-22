@@ -13,9 +13,10 @@ pub enum StyksBlockySupplerError {
     ConfigNotSet = 46000,
     PriceFeedIdNotFound = 46001,
 
-     // Role errors.
+    // Role errors.
     NotAdminRole = 46100,
     NotConfigManagerRole = 46101,
+    NotGuardianRole = 46102,
 
     // Verification errors.
     InvalidPublicKey = 46200,
@@ -32,6 +33,12 @@ pub enum StyksBlockySupplerError {
     OutputJsonDecoding = 46303,
     OutputHasNoSuccessStatus = 46304,
 
+    // Key ring errors.
+    DuplicateSignerKey = 46400,
+    SignerKeyNotFound = 46401,
+    BadFunctionName = 46402,
+    TimestampNotMonotonic = 46403,
+    ContractPaused = 46404,
 }
 
 impl From<VerificationError> for StyksBlockySupplerError {
@@ -64,7 +71,8 @@ impl From<BlockyClaimsError> for StyksBlockySupplerError {
 #[derive(Debug)]
 pub enum StyksBlockySupplerRole {
     Admin,
-    ConfigManager
+    ConfigManager,
+    Guardian,
 }
 
 impl StyksBlockySupplerRole {
@@ -73,6 +81,7 @@ impl StyksBlockySupplerRole {
             StyksBlockySupplerRole::Admin => DEFAULT_ADMIN_ROLE,
             // start with 3, so it doesn't overlap with PriceFeed.
             StyksBlockySupplerRole::ConfigManager => [3u8; 32],
+            StyksBlockySupplerRole::Guardian => [4u8; 32],
         }
     }
 }
@@ -101,12 +110,78 @@ impl StyksBlockySupplerConfig {
     }
 }
 
+// --- Signer Key Record ---
+
+#[odra::odra_type]
+pub struct SignerKeyRecord {
+    pub public_key: Bytes,
+    pub not_before: u64,
+    pub not_after: u64,
+    pub revoked: bool,
+}
+
+impl SignerKeyRecord {
+    pub fn is_active(&self, now: u64) -> bool {
+        if self.revoked {
+            return false;
+        }
+        if self.not_before != 0 && now < self.not_before {
+            return false;
+        }
+        if self.not_after != 0 && now > self.not_after {
+            return false;
+        }
+        true
+    }
+}
+
+// --- Events ---
+
+#[odra::event]
+pub struct SignerKeyAdded {
+    pub by: Address,
+    pub public_key: Bytes,
+    pub not_before: u64,
+    pub not_after: u64,
+}
+
+#[odra::event]
+pub struct SignerKeyRetired {
+    pub by: Address,
+    pub public_key: Bytes,
+    pub not_after: u64,
+}
+
+#[odra::event]
+pub struct SignerKeyRevoked {
+    pub by: Address,
+    pub public_key: Bytes,
+}
+
+#[odra::event]
+pub struct Paused {
+    pub account: Address,
+}
+
+#[odra::event]
+pub struct Unpaused {
+    pub account: Address,
+}
+
 // --- StyksBlockySupplier Contract ---
 
-#[odra::module]
+#[odra::module(
+    events = [SignerKeyAdded, SignerKeyRetired, SignerKeyRevoked, Paused, Unpaused],
+    errors = StyksBlockySupplerError
+)]
 pub struct StyksBlockySupplier {
     access_control: SubModule<AccessControl>,
     config: Var<StyksBlockySupplerConfig>,
+    // Key ring storage
+    signer_keys: Var<Vec<SignerKeyRecord>>,
+    is_paused: Var<bool>,
+    last_seen_timestamp: Mapping<PriceFeedId, u64>,
+    expected_function: Var<String>,
 }
 
 #[odra::module]
@@ -147,32 +222,48 @@ impl StyksBlockySupplier {
         self.config.get()
     }
 
-    /// Verifies the signature against the data.
+    /// Verifies the signature against the data and reports prices to the feed.
     pub fn report_signed_prices(
         &mut self,
         signature: Bytes,
         data: Bytes,
     ) {
+        // 1. Pause gate first
+        self.require_not_paused();
+
         let config = self.get_config();
-        let public_key = config.public_key();
+        let now = self.env().get_block_time_secs();
 
-        // Verify the signature.
-        self.assert_valid_signature(&public_key, &signature, &data);
+        // 2. Signature verification with key ring support
+        let keys = self.signer_keys.get_or_default();
+        if keys.is_empty() {
+            // Backward compatibility: use config.public_key
+            self.assert_valid_signature(config.public_key(), &signature, &data);
+        } else {
+            // Use key ring
+            self.assert_valid_signature_any(&keys, &signature, &data, now);
+        }
 
-        // Decode the data.
+        // 3. Decode the data
         let claims = match BlockyClaims::decode_fn_call_claims(&data) {
             Ok(claims) => claims,
             Err(error) => {
                 self.env().revert(StyksBlockySupplerError::from(error));
             }
         };
-        
-        // Verify the claims.
+
+        // 4. Verify WASM hash
         if claims.hash_of_code() != config.wasm_hash {
             self.env().revert(StyksBlockySupplerError::BadWasmHash);
         }
 
-        // Extract the output.
+        // 5. Enforce function name (if configured)
+        let expected_fn = self.expected_function.get_or_default();
+        if !expected_fn.is_empty() && claims.function() != expected_fn {
+            self.env().revert(StyksBlockySupplerError::BadFunctionName);
+        }
+
+        // 6. Extract the output
         let output = match claims.output() {
             Ok(output) => output,
             Err(error) => {
@@ -180,26 +271,154 @@ impl StyksBlockySupplier {
             }
         };
 
-        // Verify the timestamp.
+        // 7. Verify timestamp freshness
         self.assert_timestamp_in_range(output.timestamp, config.timestamp_tolerance);
 
-        // Load the price feed.
-        let mut feed = StyksPriceFeedContractRef::new(
-            self.env(),
-            config.price_feed_address,
-        );
-
-        // Load the price.
-        let price = Price::from(output.price);
-
-        // Load the PriceFeedId.
+        // 8. Load price feed ID
         let price_feed_id = match config.price_feed_id(&output.identifier()) {
             Some(id) => PriceFeedId::from(id),
             None => self.env().revert(StyksBlockySupplerError::PriceFeedIdNotFound)
         };
 
-        // Report the price to the feed.
-        feed.add_to_feed(vec![(price_feed_id, price)]);
+        // 9. Monotonic timestamp anti-replay
+        let last = self.last_seen_timestamp.get(&price_feed_id).unwrap_or_default();
+        if output.timestamp <= last {
+            self.env().revert(StyksBlockySupplerError::TimestampNotMonotonic);
+        }
+
+        // 10. Forward to price feed
+        let mut feed = StyksPriceFeedContractRef::new(
+            self.env(),
+            config.price_feed_address,
+        );
+        let price = Price::from(output.price);
+        feed.add_to_feed(vec![(price_feed_id.clone(), price)]);
+
+        // 11. Update last seen timestamp
+        self.last_seen_timestamp.set(&price_feed_id, output.timestamp);
+    }
+
+    // --- Key Ring Management ---
+
+    pub fn get_signer_keys(&self) -> Vec<SignerKeyRecord> {
+        self.signer_keys.get_or_default()
+    }
+
+    pub fn add_signer_key(&mut self, public_key: Bytes, not_before: u64, not_after: u64) {
+        self.assert_config_manager(&self.env().caller());
+
+        // Validate public key format
+        if let Err(e) = styks_blocky_parser::verify::validate_public_key(&public_key) {
+            self.env().revert(StyksBlockySupplerError::from(e));
+        }
+
+        // Check for duplicates
+        let mut keys = self.signer_keys.get_or_default();
+        for key in &keys {
+            if key.public_key == public_key {
+                self.env().revert(StyksBlockySupplerError::DuplicateSignerKey);
+            }
+        }
+
+        let record = SignerKeyRecord {
+            public_key: public_key.clone(),
+            not_before,
+            not_after,
+            revoked: false,
+        };
+        keys.push(record);
+        self.signer_keys.set(keys);
+
+        self.env().emit_event(SignerKeyAdded {
+            by: self.env().caller(),
+            public_key,
+            not_before,
+            not_after,
+        });
+    }
+
+    pub fn retire_signer_key(&mut self, public_key: Bytes, not_after: u64) {
+        self.assert_config_manager(&self.env().caller());
+
+        let mut keys = self.signer_keys.get_or_default();
+        let mut found = false;
+        for key in &mut keys {
+            if key.public_key == public_key {
+                key.not_after = not_after;
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            self.env().revert(StyksBlockySupplerError::SignerKeyNotFound);
+        }
+        self.signer_keys.set(keys);
+
+        self.env().emit_event(SignerKeyRetired {
+            by: self.env().caller(),
+            public_key,
+            not_after,
+        });
+    }
+
+    pub fn revoke_signer_key(&mut self, public_key: Bytes) {
+        // Guardian OR ConfigManager can revoke
+        let caller = self.env().caller();
+        let is_guardian = self.has_role(&StyksBlockySupplerRole::Guardian.role_id(), &caller);
+        let is_config_manager = self.has_role(&StyksBlockySupplerRole::ConfigManager.role_id(), &caller);
+        if !is_guardian && !is_config_manager {
+            self.env().revert(StyksBlockySupplerError::NotGuardianRole);
+        }
+
+        let mut keys = self.signer_keys.get_or_default();
+        let mut found = false;
+        for key in &mut keys {
+            if key.public_key == public_key {
+                key.revoked = true;
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            self.env().revert(StyksBlockySupplerError::SignerKeyNotFound);
+        }
+        self.signer_keys.set(keys);
+
+        self.env().emit_event(SignerKeyRevoked {
+            by: self.env().caller(),
+            public_key,
+        });
+    }
+
+    pub fn set_expected_function(&mut self, name: String) {
+        self.assert_config_manager(&self.env().caller());
+        self.expected_function.set(name);
+    }
+
+    pub fn get_expected_function(&self) -> String {
+        self.expected_function.get_or_default()
+    }
+
+    // --- Pause Control ---
+
+    pub fn pause(&mut self) {
+        self.assert_guardian_or_admin(&self.env().caller());
+        self.is_paused.set(true);
+        self.env().emit_event(Paused {
+            account: self.env().caller(),
+        });
+    }
+
+    pub fn unpause(&mut self) {
+        self.assert_guardian_or_admin(&self.env().caller());
+        self.is_paused.set(false);
+        self.env().emit_event(Unpaused {
+            account: self.env().caller(),
+        });
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.is_paused.get_or_default()
     }
 }
 
@@ -211,6 +430,7 @@ impl StyksBlockySupplier {
             let error = match role {
                 Admin => NotAdminRole,
                 ConfigManager => NotConfigManagerRole,
+                Guardian => NotGuardianRole,
             };
             self.env().revert(error);
         }
@@ -218,6 +438,20 @@ impl StyksBlockySupplier {
 
     fn assert_config_manager(&self, address: &Address) {
         self.assert_role(address, StyksBlockySupplerRole::ConfigManager);
+    }
+
+    fn assert_guardian_or_admin(&self, address: &Address) {
+        let is_guardian = self.has_role(&StyksBlockySupplerRole::Guardian.role_id(), address);
+        let is_admin = self.has_role(&StyksBlockySupplerRole::Admin.role_id(), address);
+        if !is_guardian && !is_admin {
+            self.env().revert(StyksBlockySupplerError::NotGuardianRole);
+        }
+    }
+
+    fn require_not_paused(&self) {
+        if self.is_paused.get_or_default() {
+            self.env().revert(StyksBlockySupplerError::ContractPaused);
+        }
     }
 
     fn assert_valid_signature(
@@ -234,6 +468,29 @@ impl StyksBlockySupplier {
         if let Err(error) = result {
             self.env().revert(StyksBlockySupplerError::from(error));
         }
+    }
+
+    fn assert_valid_signature_any(
+        &self,
+        keys: &[SignerKeyRecord],
+        signature: &[u8],
+        data: &[u8],
+        now: u64,
+    ) {
+        for key in keys {
+            if !key.is_active(now) {
+                continue;
+            }
+            let result = styks_blocky_parser::verify::verify_signature(
+                &key.public_key,
+                signature,
+                data,
+            );
+            if result.is_ok() {
+                return; // Found valid signature
+            }
+        }
+        self.env().revert(StyksBlockySupplerError::BadSignature);
     }
 
     fn assert_timestamp_in_range(&self, reported: u64, tolerance: u64) {

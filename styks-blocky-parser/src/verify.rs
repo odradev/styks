@@ -34,6 +34,12 @@ pub fn verify_signature(
     Ok(())
 }
 
+pub fn validate_public_key(public_key: &[u8]) -> Result<(), VerificationError> {
+    VerifyingKey::from_sec1_bytes(public_key)
+        .map(|_| ())
+        .map_err(|_| VerificationError::InvalidPublicKey)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{block_output_for_tests};

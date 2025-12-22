@@ -1,7 +1,8 @@
 use odra::prelude::*;
 use odra::host::HostEnv;
+use odra::schema::casper_contract_schema::NamedCLType;
 use odra_cli::{
-    cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, ContractProvider, DeployedContractsContainer
+    cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, CommandArg, ContractProvider, DeployedContractsContainer
 };
 use styks_contracts::{styks_blocky_supplier::{StyksBlockySupplerRole, StyksBlockySupplier, StyksBlockySupplierHostRef}, styks_price_feed::{StyksPriceFeed, StyksPriceFeedHostRef, StyksPriceFeedRole}};
 
@@ -13,11 +14,21 @@ impl ScenarioMetadata for SetPermissions {
 }
 
 impl Scenario for SetPermissions {
+    fn args(&self) -> Vec<CommandArg> {
+        vec![
+            CommandArg::new(
+                "guardian-address",
+                "The account hash for the Guardian role (emergency operations)",
+                NamedCLType::String,
+            )
+        ]
+    }
+
     fn run(
         &self,
         env: &HostEnv,
         container: &DeployedContractsContainer,
-        _args: Args,
+        args: Args,
     ) -> core::result::Result<(), Error> {
         let mut feed = container.contract_ref::<StyksPriceFeed>(&env)?;
         let mut supplier = container.contract_ref::<StyksBlockySupplier>(&env)?;
@@ -42,7 +53,19 @@ impl Scenario for SetPermissions {
             &supplier.address(),
             env,
         )?;
-        
+
+        // Grant Guardian role to separate address (if provided)
+        if let Ok(guardian_addr) = args.get_single::<String>("guardian-address") {
+            // Leak the string for 'static lifetime (acceptable for CLI code)
+            let guardian_addr: &'static str = Box::leak(guardian_addr.into_boxed_str());
+            let guardian = Address::new(guardian_addr)
+                .expect("Invalid guardian address format");
+            odra_cli::log(format!("Setting Guardian permissions for address: {:?}", guardian));
+            set_role_supplier(&mut supplier, &StyksBlockySupplerRole::Guardian, &guardian, env)?;
+        } else {
+            odra_cli::log("Warning: No guardian-address provided. Guardian role not granted.");
+        }
+
         Ok(())
     }
 }
