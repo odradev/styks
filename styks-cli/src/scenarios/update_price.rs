@@ -227,7 +227,7 @@ impl Updater {
         ));
 
         // Try fast path first (with cached signer).
-        self.env.set_gas(cspr!(4.0));
+        self.env.set_gas(cspr!(10.0));
         let result = self.supplier_contract.try_report_prices(
             Bytes::from(ta_bytes.clone()),
             self.cached_signer_id.clone(),
@@ -251,7 +251,7 @@ impl Updater {
                 }
 
                 // Retry with new signer.
-                self.env.set_gas(cspr!(4.0));
+                self.env.set_gas(cspr!(10.0));
                 let retry_result = self.supplier_contract.try_report_prices(
                     Bytes::from(ta_bytes),
                     self.cached_signer_id.clone(),
