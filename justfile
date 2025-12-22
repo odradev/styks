@@ -1,6 +1,13 @@
 default:
     just -l
 
+build-contracts:
+    cargo odra build
+
+clean:
+    cargo clean
+    rm -rf build prepare wasm styks-contracts/wasm
+
 test:
     cargo odra test -b casper
 

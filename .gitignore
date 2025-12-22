@@ -1,5 +1,7 @@
 blocky-guest/tmp/out.json
 target
+build
+prepare
 .DS_Store
 .env
 Cargo.lock

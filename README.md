@@ -26,6 +26,10 @@ Below you can find detailed description of the Styks project.
 
 [TOC]
 
+## Building
+
+See [BUILD.md](BUILD.md) for prerequisites and build instructions.
+
 ## Why does Casper need a price oracle?
 
 The price oracle is a piece of public infrastructure, that ports a price data
