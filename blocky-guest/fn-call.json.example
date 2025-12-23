@@ -1,0 +1,11 @@
+{
+  "code_file": "tmp/x.wasm",
+  "function": "priceFunc",
+  "input": {
+    "market": "Gate",
+    "coin_id": "casper-network"
+  },
+  "secret": {
+    "api_key": "PUT YOUR KEY HERE"
+  }
+}

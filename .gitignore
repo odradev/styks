@@ -1,4 +1,5 @@
 blocky-guest/tmp/out.json
+blocky-guest/fn-call.json
 target
 .DS_Store
 .env
