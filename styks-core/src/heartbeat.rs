@@ -266,11 +266,7 @@ mod tests {
 
     #[test]
     fn test_count_missed_heartbeats_since() {
-        fn check(
-            last_heartbeat_time: u64,
-            current_time: u64,
-            expected_missed: u64,
-        ) {
+        fn check(last_heartbeat_time: u64, current_time: u64, expected_missed: u64) {
             let heartbeat = Heartbeat::new(current_time, 100, 10).unwrap();
             let missed = heartbeat.count_missed_heartbeats_since(last_heartbeat_time);
             let msg = format!(
