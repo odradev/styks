@@ -8,9 +8,13 @@ odra = { workspace = true }
 odra-modules = { workspace = true }
 styks-core = { path = "../styks-core" }
 styks-blocky-parser = { path = "../styks-blocky-parser", default-features = false }
+styks-make-parser = { path = "../styks-make-parser", default-features = false }
+serde-json-wasm = {version = "1", default-features = false }
+sha2 = { version = "0.10.9", default-features = false }
 
 [dev-dependencies]
 odra-test = { workspace = true }
+styks-make-parser = { path = "../styks-make-parser", features = ["test-utils"]}
 
 [build-dependencies]
 odra-build = { workspace = true }

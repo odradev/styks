@@ -4,6 +4,7 @@ members = [
     "styks-cli",
     "styks-contracts",
     "styks-core",
+    "styks-make-parser",
 ]
 resolver = "2"
 

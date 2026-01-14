@@ -3,5 +3,8 @@
 
 extern crate alloc;
 
-pub mod styks_price_feed;
+pub mod make_supplier;
 pub mod styks_blocky_supplier;
+pub mod styks_price_feed;
+pub mod supplier_error;
+pub mod supplier_role;

@@ -3,3 +3,6 @@ fqn = "styks_contracts::styks_price_feed::StyksPriceFeed"
 
 [[contracts]]
 fqn = "styks_contracts::styks_blocky_supplier::StyksBlockySupplier"
+
+[[contracts]]
+fqn = "styks_contracts::make_supplier::StyksMakeSupplier"

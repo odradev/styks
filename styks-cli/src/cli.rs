@@ -1,8 +1,14 @@
 //! This example demonstrates how to use the `odra-cli` tool to deploy and interact with a smart contract.
 
-use odra::{contract_def::HasIdent, host::{HostEnv, InstallConfig, NoArgs}};
+use odra::{
+    contract_def::HasIdent,
+    host::{HostEnv, InstallConfig, NoArgs},
+};
 use odra_cli::{cspr, deploy::DeployScript, DeployedContractsContainer, DeployerExt, OdraCli};
-use styks_contracts::{styks_blocky_supplier::StyksBlockySupplier, styks_price_feed::StyksPriceFeed};
+use styks_contracts::{
+    make_supplier::StyksMakeSupplier, styks_blocky_supplier::StyksBlockySupplier,
+    styks_price_feed::StyksPriceFeed,
+};
 
 mod scenarios;
 
@@ -21,11 +27,11 @@ impl DeployScript for ContractsDeployScript {
         StyksPriceFeed::load_or_deploy_with_cfg(env, NoArgs, cfg, container, cspr!(400))?;
 
         let cfg = InstallConfig {
-            package_named_key: StyksBlockySupplier::ident(),
+            package_named_key: StyksMakeSupplier::ident(),
             is_upgradable: true,
             allow_key_override: true,
         };
-        StyksBlockySupplier::load_or_deploy_with_cfg(env, NoArgs, cfg, container, cspr!(600))?;
+        StyksMakeSupplier::load_or_deploy_with_cfg(env, NoArgs, cfg, container, cspr!(600))?;
         Ok(())
     }
 }
@@ -37,9 +43,12 @@ pub fn main() {
         .deploy(ContractsDeployScript)
         .contract::<StyksPriceFeed>()
         .contract::<StyksBlockySupplier>()
+        .contract::<StyksMakeSupplier>()
         .scenario(scenarios::SetPermissions)
         .scenario(scenarios::SetConfig)
         .scenario(scenarios::UpdatePrice)
+        .scenario(scenarios::GetPriceData)
+        .scenario(scenarios::ReportPriceDirectly)
         // .scenario(scenarios::ListFeed)
         .build()
         .run();

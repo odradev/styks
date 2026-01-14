@@ -1,0 +1,10 @@
+{
+  "data": {
+    "request": "/rates/1/latest",
+    "response_body": "{\"data\":{\"currency_id\":1,\"amount\":0.00501611,\"created\":\"2026-01-09T21:26:00Z\"}}",
+    "public_key": "MCowBQYDK2VwAyEA4N4ER9Tt76BtERLNPAi7LOm7VTtHdSHKms84XIs1w0A=",
+    "nonce": "some-random-string",
+    "signature": "bQ6g9aumv/OsjclAKLpRdlokm3bRAFrEVZabOnD5w5Q97egnJ/IF9Emq86furN89avQR+d3fqG+Eosh68FUvCQ==",
+    "timestamp": "2026-01-09T21:28:19.13953503Z"
+  }
+}
