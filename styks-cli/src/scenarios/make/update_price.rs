@@ -200,7 +200,7 @@ impl Updater<'_> {
 
     fn update_public_key(&mut self, new_key: PublicKey) -> Result<(), OdraError> {
         odra_cli::log("Updating public key in MakeSupplier contract.");
-        self.env.set_gas(cspr!(2.0));
+        self.env.set_gas(cspr!(3.0));
         self.supplier_contract.try_update_public_key(new_key)
     }
 

@@ -48,12 +48,14 @@ impl Scenario for SetPermissions {
         set_role(&feed, StyksPriceFeedRole::ConfigManager, deployer, env)?;
         set_role(&supplier, SupplierRole::ConfigManager, deployer, env)?;
 
-        // Grant PriceSupplier role to the account installed on the server.
+        // Grant PriceSupplier and ConfigManager role to the account installed on the server.
         set_role(&feed, StyksPriceFeedRole::PriceSupplier, address, env)?;
+        set_role(&supplier, SupplierRole::ConfigManager, address, env)?;
 
         // Grant PriceSupplier role to the StyksBlockySupplier in StyksPriceFeed.
         odra_cli::log("Setting permissions for StyksBlockySupplier contract.");
         set_role(&feed, StyksPriceFeedRole::PriceSupplier, supplier, env)?;
+
 
         Ok(())
     }

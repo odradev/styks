@@ -42,6 +42,8 @@ impl SetConfig {
         let config = StyksPriceFeedConfig {
             heartbeat_interval: 30 * 60,
             heartbeat_tolerance: 60,
+            // heartbeat_interval: 60,
+            // heartbeat_tolerance: 20,
             twap_window: 3,
             twap_tolerance: 1,
             price_feed_ids: vec![String::from("CSPRUSD")],
