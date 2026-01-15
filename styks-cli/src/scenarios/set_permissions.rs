@@ -20,19 +20,23 @@ impl ScenarioMetadata for SetPermissions {
 
 impl Scenario for SetPermissions {
     fn args(&self) -> Vec<odra_cli::CommandArg> {
-        vec![odra_cli::CommandArg::new(
-            "address",
-            "The address of a new PriceSupplier.",
-            odra::schema::casper_contract_schema::NamedCLType::Key,
-        )]
+        // vec![odra_cli::CommandArg::new(
+        //     "address",
+        //     "The address of a new PriceSupplier.",
+        //     odra::schema::casper_contract_schema::NamedCLType::Key,
+        // )]
+        vec![]
     }
     fn run(
         &self,
         env: &HostEnv,
         container: &DeployedContractsContainer,
-        args: Args,
+        _args: Args,
     ) -> core::result::Result<(), Error> {
-        let address = args.get_single::<Address>("address")?;
+        // let address = args.get_single::<Address>("address")?;
+        let address =
+            "account-hash-915691433d2c86c6145e46e3c5f3d266d87be6448de5dc8a4c4e710384372916";
+        let address = Address::new(address).unwrap();
         odra_cli::log(format!("Setting permissions for address: {:?}", address));
 
         let feed = container.contract_ref::<StyksPriceFeed>(&env)?;
