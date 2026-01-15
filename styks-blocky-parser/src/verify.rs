@@ -1,4 +1,4 @@
-use k256::ecdsa::{signature::hazmat::PrehashVerifier, Signature, VerifyingKey};
+use k256::ecdsa::{Signature, VerifyingKey, signature::hazmat::PrehashVerifier};
 use sha3::{Digest, Keccak256};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -19,8 +19,8 @@ pub fn verify_signature(
         .map_err(|_| VerificationError::InvalidPublicKey)?;
 
     // Parse signature.
-    let signature = Signature::from_slice(&signature)
-        .map_err(|_| VerificationError::InvalidSignature)?;
+    let signature =
+        Signature::from_slice(&signature).map_err(|_| VerificationError::InvalidSignature)?;
 
     // Hash the data.
     let mut hasher = Keccak256::new();
@@ -36,7 +36,7 @@ pub fn verify_signature(
 
 #[cfg(test)]
 mod tests {
-    use crate::{block_output_for_tests};
+    use crate::block_output_for_tests;
 
     use super::*;
 

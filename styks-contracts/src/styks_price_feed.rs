@@ -203,7 +203,7 @@ impl StyksPriceFeed {
 
         // Load the current heartbeat state.
         let heartbeat_state = heartbeat.current_state();
-        
+
         // Extract the current heartbeat time or revert if not in a heartbeat window.
         let current_heartbeat_time = if let Some(current_window) = heartbeat_state.current {
             current_window.middle
@@ -231,7 +231,8 @@ impl StyksPriceFeed {
         let expected_ids: Vec<String> = config.sorted_price_feed_ids();
         let input_ids: Vec<String> = input.iter().map(|(id, _)| id.clone()).collect();
         if input_ids != expected_ids {
-            self.env().revert(StyksPriceFeedError::PriceFeedIdsMissmatch);
+            self.env()
+                .revert(StyksPriceFeedError::PriceFeedIdsMissmatch);
         }
 
         // Update the TWAP store with the new prices.
@@ -240,13 +241,9 @@ impl StyksPriceFeed {
             // TODO: If there is more prices then the TWAP window, remove the oldest one.
             // TODO: This should be done in the TWAP module.
 
-            let mut twap = TWAP::new(
-                config.twap_window,
-                config.twap_tolerance,
-                twap_prices,
-            )
-            .map_err(StyksPriceFeedError::from)
-            .unwrap_or_revert(&self.env());
+            let mut twap = TWAP::new(config.twap_window, config.twap_tolerance, twap_prices)
+                .map_err(StyksPriceFeedError::from)
+                .unwrap_or_revert(&self.env());
 
             // Add missed heartbeats to the TWAP.
             for _ in 0..missed_heartbeats {
@@ -284,21 +281,17 @@ impl StyksPriceFeed {
         let missed_heartbeats = heartbeat.count_missed_heartbeats_since(last_heartbeat);
 
         let twap_prices = self.twap_store.get(&id).unwrap_or_default();
-        let mut twap = TWAP::new(
-            config.twap_window,
-            config.twap_tolerance,
-            twap_prices,
-        )
-        .map_err(StyksPriceFeedError::from)
-        .unwrap_or_revert(&self.env());
+        let mut twap = TWAP::new(config.twap_window, config.twap_tolerance, twap_prices)
+            .map_err(StyksPriceFeedError::from)
+            .unwrap_or_revert(&self.env());
 
         // Add missed heartbeats to the TWAP.
         for _ in 0..missed_heartbeats {
             twap.add_missed_value(); // Add None for missed heartbeats.
-        };
+        }
 
         twap.calculate()
-    }       
+    }
 }
 
 impl StyksPriceFeed {
@@ -360,7 +353,7 @@ mod tests {
 
         // Assuming the test starts at block time 1000.
         env.advance_block_time(100 * 1000);
-        assert_eq!(100, env.block_time_secs()); 
+        assert_eq!(100, env.block_time_secs());
 
         // --- Heartbeat #1 ---
 
@@ -392,7 +385,7 @@ mod tests {
         assert_eq!(contract.get_twap_price(&id), None);
 
         // --- Heartbeat #2 ---
-        
+
         // Move to the next heartbeat window.
         env.advance_block_time(40 * 1000);
         assert_eq!(190, env.block_time_secs());

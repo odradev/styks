@@ -1,7 +1,14 @@
-use odra::{casper_types::bytesrepr::Bytes, prelude::*, ContractRef};
+use odra::{
+    casper_types::{
+        bytesrepr::{Bytes, FromBytes},
+        PublicKey,
+    },
+    prelude::*,
+    ContractRef,
+};
 use odra_modules::access::{AccessControl, Role};
-use styks_blocky_parser::blocky_claims::BlockyClaims;
-use styks_core::{Price, PriceFeedId};
+use sha2::{Digest, Sha256};
+use styks_core::PriceFeedId;
 
 use crate::{
     styks_price_feed::StyksPriceFeedContractRef, supplier_error::StyksSupplierError,
@@ -9,39 +16,37 @@ use crate::{
 };
 
 // --- Configuration ---
-
 #[odra::odra_type]
-pub struct StyksBlockySupplerConfig {
-    pub wasm_hash: String,
-    pub public_key: Bytes,
-    pub coingecko_feed_ids: Vec<(String, PriceFeedId)>, // (coingecko_id, price_feed_id)
+pub struct MakeSupplierConfig {
+    pub public_key: PublicKey,
+    pub feed_ids: Vec<(String, PriceFeedId)>, // (make_id, price_feed_id)
     pub price_feed_address: Address,
     pub timestamp_tolerance: u64,
 }
 
-impl StyksBlockySupplerConfig {
-    pub fn public_key(&self) -> &[u8] {
+impl MakeSupplierConfig {
+    pub fn public_key(&self) -> &PublicKey {
         &self.public_key
     }
 
-    pub fn price_feed_id(&self, coingecko_id: &str) -> Option<PriceFeedId> {
-        self.coingecko_feed_ids
+    pub fn price_feed_id(&self, make_id: &str) -> Option<&PriceFeedId> {
+        self.feed_ids
             .iter()
-            .find(|(id, _)| id == coingecko_id)
-            .map(|(_, feed_id)| feed_id.clone())
+            .find(|(id, _)| id == make_id)
+            .map(|(_, feed_id)| feed_id)
     }
 }
 
 // --- StyksBlockySupplier Contract ---
 
 #[odra::module]
-pub struct StyksBlockySupplier {
+pub struct StyksMakeSupplier {
     access_control: SubModule<AccessControl>,
-    config: Var<StyksBlockySupplerConfig>,
+    config: Var<MakeSupplierConfig>,
 }
 
 #[odra::module]
-impl StyksBlockySupplier {
+impl StyksMakeSupplier {
     pub fn init(&mut self) {
         // Grant the admin role to the contract deployer.
         let deployer = self.env().caller();
@@ -60,74 +65,67 @@ impl StyksBlockySupplier {
         }
     }
 
-    pub fn set_config(&mut self, config: StyksBlockySupplerConfig) {
+    pub fn update_public_key(&mut self, public_key: PublicKey) {
+        // Make sure only ConfigManager can update the public key.
+        self.assert_config_manager(self.env().caller());
+
+        // Update the public key.
+        let mut config = self.get_config();
+        config.public_key = public_key;
+        self.config.set(config);
+    }
+
+    pub fn set_config(&mut self, config: MakeSupplierConfig) {
         // Make sure only ConfigManager can set the config.
-        self.assert_config_manager(&self.env().caller());
+        self.assert_config_manager(self.env().caller());
 
         // Update the config.
         self.config.set(config);
     }
 
-    pub fn get_config(&self) -> StyksBlockySupplerConfig {
+    pub fn get_config(&self) -> MakeSupplierConfig {
         self.config
-            .get()
-            .unwrap_or_revert_with(&self.env(), StyksSupplierError::ConfigNotSet)
+            .get_or_revert_with(StyksSupplierError::ConfigNotSet)
     }
 
-    pub fn get_config_or_none(&self) -> Option<StyksBlockySupplerConfig> {
+    pub fn get_config_or_none(&self) -> Option<MakeSupplierConfig> {
         self.config.get()
     }
 
     /// Verifies the signature against the data.
     pub fn report_signed_prices(&mut self, signature: Bytes, data: Bytes) {
         let config = self.get_config();
-        let public_key = config.public_key();
+
+        let parsed_data = styks_make_parser::parse_data(&data)
+            .map_err(StyksSupplierError::from)
+            .unwrap_or_revert(self);
 
         // Verify the signature.
-        self.assert_valid_signature(public_key, &signature, &data);
+        self.assert_valid_signature(signature, data);
 
-        // Decode the data.
-        let claims = match BlockyClaims::decode_fn_call_claims(&data) {
-            Ok(claims) => claims,
-            Err(error) => {
-                self.env().revert(StyksSupplierError::from(error));
-            }
-        };
-
-        // Verify the claims.
-        if claims.hash_of_code() != config.wasm_hash {
-            self.env().revert(StyksSupplierError::BadWasmHash);
-        }
-
-        // Extract the output.
-        let output = match claims.output() {
-            Ok(output) => output,
-            Err(error) => {
-                self.env().revert(StyksSupplierError::from(error));
-            }
-        };
+        let timestamp = parsed_data
+            .timestamp()
+            .map_err(StyksSupplierError::from)
+            .unwrap_or_revert(self);
 
         // Verify the timestamp.
-        self.assert_timestamp_in_range(output.timestamp, config.timestamp_tolerance);
+        self.assert_timestamp_in_range(timestamp, config.timestamp_tolerance);
 
         // Load the price feed.
         let mut feed = StyksPriceFeedContractRef::new(self.env(), config.price_feed_address);
 
-        // Load the price.
-        let price = Price::from(output.price);
-
         // Load the PriceFeedId.
-        let price_feed_id = match config.price_feed_id(&output.identifier()) {
-            Some(id) => PriceFeedId::from(id),
+        let price_feed_id = match config.price_feed_id(&parsed_data.currency_id) {
+            Some(id) => id.to_owned(),
             None => self.env().revert(StyksSupplierError::PriceFeedIdNotFound),
         };
 
         // Report the price to the feed.
-        feed.add_to_feed(vec![(price_feed_id, price)]);
+        feed.add_to_feed(vec![(price_feed_id, parsed_data.price)]);
     }
 }
 
-impl StyksBlockySupplier {
+impl StyksMakeSupplier {
     fn assert_role(&self, address: &Address, role: SupplierRole) {
         if !self.has_role(&role.role_id(), address) {
             let error = match role {
@@ -138,14 +136,20 @@ impl StyksBlockySupplier {
         }
     }
 
-    fn assert_config_manager(&self, address: &Address) {
-        self.assert_role(address, SupplierRole::ConfigManager);
+    fn assert_config_manager(&self, address: Address) {
+        self.assert_role(&address, SupplierRole::ConfigManager);
     }
 
-    fn assert_valid_signature(&self, public_key: &[u8], signature: &[u8], data: &[u8]) {
-        let result = styks_blocky_parser::verify::verify_signature(public_key, signature, data);
-        if let Err(error) = result {
-            self.env().revert(StyksSupplierError::from(error));
+    fn assert_valid_signature(&self, signature: Bytes, data: Bytes) {
+        let pk = self.get_config().public_key;
+        let hashed_data = Sha256::digest(&data);
+        let signature = odra::casper_types::crypto::Signature::from_bytes(&signature.to_vec())
+            .unwrap_or_revert_with(self, StyksSupplierError::InvalidSignature)
+            .0;
+        let result = odra::casper_types::crypto::verify(hashed_data, &signature, &pk).is_ok();
+
+        if !result {
+            self.env().revert(StyksSupplierError::BadSignature);
         }
     }
 
@@ -160,31 +164,27 @@ impl StyksBlockySupplier {
 
 #[cfg(test)]
 mod tests {
+    use odra::host::{Deployer, HostEnv, NoArgs};
+    use styks_make_parser::output::SignedPriceData;
+
     use crate::styks_price_feed::{
         StyksPriceFeed, StyksPriceFeedConfig, StyksPriceFeedHostRef, StyksPriceFeedRole,
     };
-    use odra::host::{Deployer, HostEnv, NoArgs};
-    use styks_blocky_parser::blocky_output::BlockyOutput;
 
     use super::*;
 
     fn setup() -> (
         HostEnv,
         StyksPriceFeedHostRef,
-        StyksBlockySupplierHostRef,
-        StyksBlockySupplerConfig,
-        BlockyOutput,
+        StyksMakeSupplierHostRef,
+        MakeSupplierConfig,
+        SignedPriceData,
     ) {
         let env = odra_test::env();
         let admin = env.get_account(0);
 
-        // Load BlockyOutput from file.
-        let blocky_output = BlockyOutput::try_from_file("../resources/test/1_out.json")
-            .expect("Failed to load BlockyOutput");
-
-        // Load guest wasm bytes.
-        let wasm_bytes = include_bytes!("../../resources/test/1_guest.wasm");
-        let wasm_hash = styks_blocky_parser::wasm_hash(wasm_bytes);
+        // Load SignedPriceData from file.
+        let signed_data = styks_make_parser::test_utils::test_data();
 
         // Deploy StyksPriceFeed contract.
         let mut feed = StyksPriceFeed::deploy(&env, NoArgs);
@@ -199,49 +199,50 @@ mod tests {
         feed.set_config(feed_config);
 
         // Deploy StyksBlockySupplier contract.
-        let mut supplier = StyksBlockySupplier::deploy(&env, NoArgs);
-        let supplier_config = StyksBlockySupplerConfig {
-            wasm_hash,
-            public_key: Bytes::from(blocky_output.public_key_bytes()),
-            coingecko_feed_ids: vec![(String::from("Gate_CSPR_USD"), String::from("CSPRUSD"))],
+        let mut supplier = StyksMakeSupplier::deploy(&env, NoArgs);
+        let supplier_config = MakeSupplierConfig {
+            public_key: signed_data.public_key().unwrap(),
+            feed_ids: vec![(String::from("1"), String::from("CSPRUSD"))],
             price_feed_address: feed.address(),
             timestamp_tolerance: 1, // 1 sec tolerance
         };
         supplier.grant_role(&SupplierRole::ConfigManager.role_id(), &admin);
         supplier.set_config(supplier_config.clone());
 
-        // Allow StyksBlockySupplier to add prices to StyksPriceFeed.
+        // Allow StyksMakeSupplier to add prices to StyksPriceFeed.
         let role = StyksPriceFeedRole::PriceSupplier.role_id();
         feed.grant_role(&role, &supplier.address());
 
-        (env, feed, supplier, supplier_config, blocky_output)
+        (env, feed, supplier, supplier_config, signed_data)
     }
 
     #[test]
-    fn test_styks_blocky_supplier() {
-        let (env, feed, mut supplier, supplier_config, blocky_output) = setup();
-        let id = supplier_config.coingecko_feed_ids[0].1.clone();
+    fn test_styks_supplier() {
+        let (env, feed, mut supplier, supplier_config, signed_data) = setup();
+        let id = supplier_config.feed_ids[0].1.clone();
 
         // Check initial config.
         assert_eq!(supplier.get_config(), supplier_config);
 
         // Assuming the test starts at block time 1000.
-        let timestamp = 1755463157;
+        let timestamp = 1767993960;
         env.advance_block_time(timestamp * 1000);
         assert_eq!(timestamp, env.block_time_secs());
 
         // Price should be empty initially.
         assert_eq!(feed.get_twap_price(&id), None);
+        let d = styks_make_parser::parse_data(&signed_data.payload_bytes()).unwrap();
+        println!("{}", d.timestamp().unwrap());
 
-        // Report prices using the supplier.
-        let ta = blocky_output.ta();
-        let signature = ta.signature_bytes();
-        let data = ta.data();
-
-        supplier.report_signed_prices(Bytes::from(signature), Bytes::from(data));
+        println!("Reporting signed prices...");
+        // Report signed prices.
+        supplier.report_signed_prices(
+            Bytes::from(signed_data.signature_bytes().unwrap()),
+            Bytes::from(signed_data.payload_bytes()),
+        );
 
         // Check the reported price.
         let price = feed.get_twap_price(&id);
-        assert_eq!(price, Some(1056));
+        assert_eq!(price, Some(501611));
     }
 }

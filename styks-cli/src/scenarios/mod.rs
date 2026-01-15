@@ -1,9 +1,12 @@
-mod set_config;
 mod set_permissions;
 // mod list_feed;
-mod update_price;
+mod blocky;
+mod make;
 
-pub use set_config::SetConfig;
+pub use make::{
+    data::GetPriceData,
+    set_config::SetConfig,
+    update_price::{ReportPriceDirectly, UpdatePrice},
+};
 pub use set_permissions::SetPermissions;
 // pub use list_feed::ListFeed;
-pub use update_price::UpdatePrice;

@@ -1,11 +1,10 @@
 use std::{fs, path::Path};
 
-use base64::{prelude::BASE64_STANDARD, Engine};
-use ethabi::{decode, ParamType};
+use base64::{Engine, prelude::BASE64_STANDARD};
+use ethabi::{ParamType, decode};
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey, signature::hazmat::PrehashVerifier};
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
-
 
 pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -23,7 +22,11 @@ impl BlockyOutput {
     }
 
     pub fn public_key(&self) -> VerifyingKey {
-        let public_key_str = &self.enclave_attested_application_public_key.claims.public_key.data;
+        let public_key_str = &self
+            .enclave_attested_application_public_key
+            .claims
+            .public_key
+            .data;
         let public_key_bytes = BASE64_STANDARD.decode(public_key_str).unwrap();
         let public_key = VerifyingKey::from_sec1_bytes(&public_key_bytes)
             .expect("Failed to parse original public key from SEC1 bytes");
@@ -35,11 +38,14 @@ impl BlockyOutput {
     }
 
     pub fn ta(&self) -> TA {
-        let ta_data = &self.transitive_attested_function_call.transitive_attestation;
-        let ta_data = BASE64_STANDARD.decode(ta_data).expect("Failed to decode TA data");
+        let ta_data = &self
+            .transitive_attested_function_call
+            .transitive_attestation;
+        let ta_data = BASE64_STANDARD
+            .decode(ta_data)
+            .expect("Failed to decode TA data");
         TA::new(&ta_data)
     }
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -184,8 +190,6 @@ impl TA {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use crate::block_output_for_tests;
@@ -193,7 +197,19 @@ mod tests {
     #[test]
     fn test_load_blocky_output_from_file() {
         let output = block_output_for_tests();
-        assert!(output.enclave_attested_application_public_key.enclave_attestation.len() > 0);
-        assert!(output.transitive_attested_function_call.transitive_attestation.len() > 0);
+        assert!(
+            output
+                .enclave_attested_application_public_key
+                .enclave_attestation
+                .len()
+                > 0
+        );
+        assert!(
+            output
+                .transitive_attested_function_call
+                .transitive_attestation
+                .len()
+                > 0
+        );
     }
 }

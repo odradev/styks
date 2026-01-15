@@ -1,9 +1,15 @@
+use std::fmt::Debug;
+
+use odra::host::{HostEnv, HostRef};
 use odra::prelude::*;
-use odra::host::HostEnv;
 use odra_cli::{
-    cspr, scenario::{Args, Error, Scenario, ScenarioMetadata}, ContractProvider, DeployedContractsContainer
+    cspr,
+    scenario::{Args, Error, Scenario, ScenarioMetadata},
+    ContractProvider, DeployedContractsContainer,
 };
-use styks_contracts::{styks_blocky_supplier::{StyksBlockySupplerRole, StyksBlockySupplier, StyksBlockySupplierHostRef}, styks_price_feed::{StyksPriceFeed, StyksPriceFeedHostRef, StyksPriceFeedRole}};
+use styks_contracts::make_supplier::StyksMakeSupplier;
+use styks_contracts::styks_price_feed::{StyksPriceFeed, StyksPriceFeedRole};
+use styks_contracts::supplier_role::SupplierRole;
 
 pub struct SetPermissions;
 
@@ -13,70 +19,77 @@ impl ScenarioMetadata for SetPermissions {
 }
 
 impl Scenario for SetPermissions {
+    fn args(&self) -> Vec<odra_cli::CommandArg> {
+        vec![odra_cli::CommandArg::new(
+            "address",
+            "The address of a new PriceSupplier.",
+            odra::schema::casper_contract_schema::NamedCLType::Key,
+        )]
+    }
     fn run(
         &self,
         env: &HostEnv,
         container: &DeployedContractsContainer,
-        _args: Args,
+        args: Args,
     ) -> core::result::Result<(), Error> {
-        let mut feed = container.contract_ref::<StyksPriceFeed>(&env)?;
-        let mut supplier = container.contract_ref::<StyksBlockySupplier>(&env)?;
+        let address = args.get_single::<Address>("address")?;
+        odra_cli::log(format!("Setting permissions for address: {:?}", address));
+
+        let feed = container.contract_ref::<StyksPriceFeed>(&env)?;
+        let supplier = container.contract_ref::<StyksMakeSupplier>(&env)?;
         let deployer = env.caller();
 
         // Grant all Config roles to the deployer.
         odra_cli::log(format!("Setting permissions for address: {:?}", deployer));
-        set_role_feed(&mut feed, &StyksPriceFeedRole::ConfigManager, &deployer, env)?;
-        set_role_supplier(&mut supplier, &StyksBlockySupplerRole::ConfigManager, &deployer, env)?;
+        set_role(&feed, StyksPriceFeedRole::ConfigManager, deployer, env)?;
+        set_role(&supplier, SupplierRole::ConfigManager, deployer, env)?;
 
         // Grant PriceSupplier role to the account installed on the server.
-        let address = "account-hash-915691433d2c86c6145e46e3c5f3d266d87be6448de5dc8a4c4e710384372916";
-        let address = Address::new(address).unwrap();
-        odra_cli::log(format!("Setting permissions for address: {:?}", address));
-        set_role_feed(&mut feed, &StyksPriceFeedRole::PriceSupplier, &address, env)?;
+        set_role(&feed, StyksPriceFeedRole::PriceSupplier, address, env)?;
 
         // Grant PriceSupplier role to the StyksBlockySupplier in StyksPriceFeed.
         odra_cli::log("Setting permissions for StyksBlockySupplier contract.");
-        set_role_feed(
-            &mut feed,
-            &StyksPriceFeedRole::PriceSupplier,
-            &supplier.address(),
-            env,
-        )?;
-        
+        set_role(&feed, StyksPriceFeedRole::PriceSupplier, supplier, env)?;
+
         Ok(())
     }
 }
 
-fn set_role_feed(
-    contract: &mut StyksPriceFeedHostRef,
-    role: &StyksPriceFeedRole,
-    address: &Address,
-    env: &HostEnv,
-) -> Result<(), Error> {
-
-    if contract.has_role(&role.role_id(), address) {
-        odra_cli::log(format!("Already has role: {:?} in StyksPriceFeed", role));
-    } else {
-        odra_cli::log(format!("Granting role: {:?} in StyksPriceFeed", role));
-        env.set_gas(cspr!(2.5));
-        contract.grant_role(&role.role_id(), address);
-    }
-    Ok(())
+#[odra::external_contract]
+trait RoleManager {
+    fn has_role(&self, role: &[u8; 32], address: &Address) -> bool;
+    fn grant_role(&mut self, role: &[u8; 32], address: &Address);
 }
 
-fn set_role_supplier(
-    contract: &mut StyksBlockySupplierHostRef,
-    role: &StyksBlockySupplerRole,
-    address: &Address,
+trait RoleId: Debug {
+    fn get(&self) -> [u8; 32];
+}
+
+impl RoleId for StyksPriceFeedRole {
+    fn get(&self) -> [u8; 32] {
+        self.role_id()
+    }
+}
+
+impl RoleId for SupplierRole {
+    fn get(&self) -> [u8; 32] {
+        self.role_id()
+    }
+}
+
+fn set_role(
+    contract_address: &dyn Addressable,
+    role_id: impl RoleId,
+    address: impl Addressable,
     env: &HostEnv,
 ) -> Result<(), Error> {
-
-    if contract.has_role(&role.role_id(), address) {
-        odra_cli::log(format!("Already has role: {:?} in StyksBlockySupplier", role));
+    let mut contract = RoleManagerHostRef::new(contract_address.address(), env.clone());
+    if contract.has_role(&role_id.get(), &address.address()) {
+        odra_cli::log(format!("Already has role: {:?}", role_id));
     } else {
-        odra_cli::log(format!("Granting role: {:?} in StyksBlockySupplier", role));
+        odra_cli::log(format!("Granting role: {:?}", role_id));
         env.set_gas(cspr!(2.5));
-        contract.grant_role(&role.role_id(), address);
+        contract.grant_role(&role_id.get(), &address.address());
     }
     Ok(())
 }
