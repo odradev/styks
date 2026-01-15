@@ -11,7 +11,6 @@ pub fn get_price_data<T: Into<NoncePayload>>(
 ) -> Result<SignedPriceData, String> {
     let api_key = std::env::var("CSPR_CLOUD_AUTH_TOKEN")
         .expect("CSPR_CLOUD_AUTH_TOKEN environment variable not set");
-    odra_cli::log(format!("Using API key: {}", api_key));
 
     let response = ureq::post(format!(
         "https://attested-api.cspr.cloud/rates/{price_feed_id}/latest"
