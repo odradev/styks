@@ -34,10 +34,10 @@ impl Scenario for SetPermissions {
         _args: Args,
     ) -> core::result::Result<(), Error> {
         // let address = args.get_single::<Address>("address")?;
-        let address =
-            "account-hash-915691433d2c86c6145e46e3c5f3d266d87be6448de5dc8a4c4e710384372916";
-        let address = Address::new(address).unwrap();
-        odra_cli::log(format!("Setting permissions for address: {:?}", address));
+        // let address =
+        //     "account-hash-915691433d2c86c6145e46e3c5f3d266d87be6448de5dc8a4c4e710384372916";
+        // let address = Address::new(address).unwrap();
+        // odra_cli::log(format!("Setting permissions for address: {:?}", address));
 
         let feed = container.contract_ref::<StyksPriceFeed>(&env)?;
         let supplier = container.contract_ref::<StyksMakeSupplier>(&env)?;
@@ -49,8 +49,8 @@ impl Scenario for SetPermissions {
         set_role(&supplier, SupplierRole::ConfigManager, deployer, env)?;
 
         // Grant PriceSupplier and ConfigManager role to the account installed on the server.
-        set_role(&feed, StyksPriceFeedRole::PriceSupplier, address, env)?;
-        set_role(&supplier, SupplierRole::ConfigManager, address, env)?;
+        // set_role(&feed, StyksPriceFeedRole::PriceSupplier, address, env)?;
+        // set_role(&supplier, SupplierRole::ConfigManager, address, env)?;
 
         // Grant PriceSupplier role to the StyksBlockySupplier in StyksPriceFeed.
         odra_cli::log("Setting permissions for StyksBlockySupplier contract.");

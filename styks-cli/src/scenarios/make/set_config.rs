@@ -42,8 +42,6 @@ impl SetConfig {
         let config = StyksPriceFeedConfig {
             heartbeat_interval: 30 * 60,
             heartbeat_tolerance: 60,
-            // heartbeat_interval: 60,
-            // heartbeat_tolerance: 20,
             twap_window: 3,
             twap_tolerance: 1,
             price_feed_ids: vec![String::from("CSPRUSD")],
@@ -79,7 +77,7 @@ impl SetConfig {
             public_key: signed_data.public_key().unwrap(),
             feed_ids: vec![(String::from("1"), String::from("CSPRUSD"))],
             price_feed_address: feed_addr,
-            timestamp_tolerance: 20 * 60, // 20 minutes tolerance
+            timestamp_tolerance: 5 * 60, // 5 minutes
         };
 
         if let Some(current_config) = supplier.get_config_or_none() {

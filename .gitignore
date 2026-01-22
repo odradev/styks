@@ -3,5 +3,6 @@ blocky-guest/fn-call.json
 target
 .DS_Store
 .env
+.env.testnet
 Cargo.lock
 wasm
