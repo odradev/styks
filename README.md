@@ -4,21 +4,28 @@ The very first onchain price oracle for Casper.
 
 <!-- WEBSITE: START -->
 
-Styks is deployed on the Casper Testnet.
+Styks is deployed to the Casper Mainnet.
+
+- Status: <span style="color: #b5e853"><b>Active</b></span>.
+- <span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: [cspr.live/814f...e121](https://cspr.live/contract-package/814fedbd4ae53b82ab19b1ff6698ce412445c3266271fcb639986d37dc0ae121).
+- <span style="color: #b5e853"><b>StyksMakeSupplier</b></span> contract: [cspr.live/acd6...9d96](https://cspr.live/contract-package/acd6c58964fb474c686b02ca1945364cff192519074376de14a97b58e07f9d96).
+- Available price feed: <span style="color: #b5e853"><b>CSPRUSD</b></span>.
+- Current heartbeat interval: <span style="color: #b5e853"><b>30 minutes</
+
+Styks is also deployed on the Casper Testnet.
 
 - Status: <span style="color: #b5e853"><b>Active</b></span>.
 - <span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: [testnet.cspr.live/2879...1acc](https://testnet.cspr.live/contract-package/2879d6e927289197aab0101cc033f532fe22e4ab4686e44b5743cb1333031acc).
-- <span style="color: #b5e853"><b>StyksBlockySupplier</b></span> contract: [testnet.cspr.live/fe8b...c5a9](https://testnet.cspr.live/contract-package/fe8b1829844276b21e8d577d525808ed36cc9e12c06b5acfb897204e5b49c5a9).
+- <span style="color: #b5e853"><b>StyksMakeSupplier</b></span> contract: [testnet.cspr.live/708b...bf36](https://testnet.cspr.live/contract-package/708b4bae0dbe3f0f118410572eb629d235da6b06c776a8dfefaa7decf9f7bf36).
 - Available price feed: <span style="color: #b5e853"><b>CSPRUSD</b></span>.
 - Current heartbeat interval: <span style="color: #b5e853"><b>30 minutes</b></span>.
 
 
 Recent changes:
 
+- 2026/01/22 - Mainnet launch.
+- 2025/01/04 - Added support for Make's attestation service.
 - 2025/08/18 - Heartbeat interval changed to 30 minutes.
-- 2025/08/17 - `StyksBlockySupplier` deployed to the Casper Testnet.
-- 2025/08/07 - `StyksPriceFeed` deployed to the Casper Testnet.
-
 
 ---
 
@@ -70,31 +77,27 @@ let price: Option<u64> = runtime::call_versioned_contract(
 
 Styks architecture consists of four main components:
 
-- Blocky Server -  for fetching the latest, signed prices from the CoinGecko
-  API.
-- Onchain smart contracts - `StyksBlockySupplier` and `StyksPriceFeed` for storing
+- Make Server - for fetching the latest, signed prices.
+- Onchain smart contracts - `StyksMakeSupplier` and `StyksPriceFeed` for storing
   and operating the prices onchain.
 - `PriceProducer` - offchain component, that is responsible for fetching the
-  latest prices from the Blocky Server and posting them to the `StyksBlockySupplier`
+  latest prices from the Make Server and posting them to the `StyksMakeSupplier`
   contract.
 - `StyksAdmin` - admin account, that is responsible for maintaining the correct configuration of smart contracts.
 
 ```mermaid
 
 flowchart TB
-    subgraph Blocky Server
-      BlockyAPI
-      CoinGecko
-    end
 
     subgraph Offchain Actors
+      MakeServer
       PriceProducer
       StyksAdmin
     end
 
     subgraph Casper Blockchain
       OnchainConsumer
-      StyksBlockySupplier
+      StyksMakeSupplier
       StyksPriceFeed
     end
 
@@ -102,53 +105,24 @@ flowchart TB
     OnchainConsumer -->|"get_twap_price(symbol)"| StyksPriceFeed
     StyksPriceFeed -->|price| OnchainConsumer
 
-    %% Bringing the price onchain using blocky.
-    PriceProducer -->|"call guest program"| BlockyAPI
-    BlockyAPI -->|"get_prices(symbols)"| CoinGecko
-    CoinGecko -->|"prices"| BlockyAPI
-    BlockyAPI -->|"prices"| PriceProducer
-    PriceProducer -->|"post_prices(signed_prices)"| StyksBlockySupplier
-    StyksBlockySupplier -->|"post_prices(prices)"| StyksPriceFeed
+    %% Bringing the price onchain using Make.
+    PriceProducer -->|"get prices"| MakeServer
+    MakeServer -->|"prices"| PriceProducer
+    PriceProducer -->|"post_prices(signed_prices)"| StyksMakeSupplier
+    StyksMakeSupplier -->|"post_prices(prices)"| StyksPriceFeed
 
     %% Define price feeds.
     StyksAdmin -->|"configure"| StyksPriceFeed
-    StyksAdmin -->|"configure"| StyksBlockySupplier
+    StyksAdmin -->|"configure"| StyksMakeSupplier
 ```
 
-## Blocky
+## Make
 
-Styks leverages [Blocky](https://blocky-docs.redocly.app/), a trusted execution
-service that solves a key challenge in oracle design: how to verify that
-external data hasn't been tampered with.
+Styks leverages [Make](https://cspr.build/), a trusted price feed.
 
-Traditional oracles face a trust issue - how can smart contracts verify that
-price data actually came from the claimed source (like CoinGecko) and wasn't
-modified by the oracle operator?
-
-The Solution Blocky provides **verifiable computation** through these steps:
-
-1. **Guest Program**: A small WebAssembly (WASM) program that contains the exact
-   logic for fetching data.
-2. **Secure Execution**: Blocky runs this program in a secure environment. 
-3. **Cryptographic Proof**: Blocky signs the results, proving the data came from
-   running the specific program.
-
-### How Styks Uses Blocky
-
-`PriceProducer` uploads a simple guest program to Blocky that:
-
-- Fetches the latest cryptocurrency prices from CoinGecko's API.
-- Returns all prices as a single data package
-- Gets cryptographically signed by Blocky's servers
-
-This signature proves that:
-
-- The data actually came from CoinGecko (not fabricated)
-- The specific program was executed (no hidden modifications)
-- The results haven't been altered
-
-The `PriceProducer` simply executes this verified program and submits the signed
-results to the blockchain.
+Make uses Amazon's AWS Nitro Enclaves to securely run guest programs that fetch
+data from the outside world, sign it cryptographically and return it to the
+requestor. This way, the data is guaranteed to be authentic and unmodified.
 
 ## Heartbeat
 
@@ -227,21 +201,20 @@ Configuration of the contract:
 - `twap_tolerance`,
 - `price_feed_ids` - list of enabled price feeds.
 
-## StyksBlockySupplier Smart Contract
+## StyksMakeSupplier Smart Contract
 
-The `StyksBlockySupplier` smart contract is a bridge between the Blocky server and
+The `StyksMakeSupplier` smart contract is a bridge between the Make server and
 the `StyksPriceFeed` smart contract. It is responsible for receiving the signed
 prices from the `PriceProducer` and posting them to the `StyksPriceFeed` after
 verifying authenticity and freshness.
 
 It is configured as follows:
 
-- `wasm_hash` - hash of the Blocky's guest program (a WASM file).
 - `public_key` - public key used to verify the signature of the prices.
 - `price_feed_address` - address of the `StyksPriceFeed` contract,
   where the prices are posted.
-- `coingecko_feed_ids` - list of mappings between Blocky/CoinGecko identifiers and
-  on-chain PriceFeedIds. Example: `("Gate_CSPR_USD", "CSPRUSD")`.
+- `feed_ids` - list of mappings between Make's identifiers and
+  on-chain PriceFeedIds. Example: `("1", "CSPRUSD")`.
 - `timestamp_tolerance` - allowed drift (in seconds) between the reported timestamp
   and the current on-chain time.
 
@@ -254,7 +227,7 @@ Note:
 - Anyone can submit signed data via `report_signed_prices`, but only data that
   is correctly signed with `public_key`, produced by the expected `wasm_hash`,
   and whose timestamp is within `timestamp_tolerance` will be forwarded to the feed.
-- The `StyksBlockySupplier` contract must have the `PriceSupplierRole` assigned
+- The `StyksMakeSupplier` contract must have the `PriceSupplierRole` assigned
   in the `StyksPriceFeed` contract in order to be able to post the prices there.
 
 ## Price Update Procedure
@@ -266,38 +239,36 @@ with the latest prices.
 
 sequenceDiagram
     participant PriceProducer
-    participant BlockyAPI
-    participant StyksBlockySupplier
+    participant MakeServer
+    participant StyksMakeSupplier
     participant StyksPriceFeed
 
-    PriceProducer->>BlockyAPI: get_prices(symbols)
-    BlockyAPI-->>PriceProducer: signed_prices
-    PriceProducer->>StyksBlockySupplier: post_prices(signed_prices)
-    StyksBlockySupplier->>StyksBlockySupplier: validate signature, wasm hash, timestamp, mapping
-    StyksBlockySupplier->>StyksPriceFeed: post_prices(prices)
+    PriceProducer->>MakeServer: get_prices(symbols)
+    MakeServer-->>PriceProducer: signed_prices
+    PriceProducer->>StyksMakeSupplier: post_prices(signed_prices)
+    StyksMakeSupplier->>StyksMakeSupplier: validate signature, timestamp, mapping
+    StyksMakeSupplier->>StyksPriceFeed: post_prices(prices)
 
     StyksPriceFeed->>StyksPriceFeed: validate input
-    StyksPriceFeed-->>StyksBlockySupplier: prices_validated
-    StyksBlockySupplier-->>PriceProducer: prices_posted
+    StyksPriceFeed-->>StyksMakeSupplier: prices_validated
+    StyksMakeSupplier-->>PriceProducer: prices_posted
 ```
 
 ### Step 1: `PriceProducer` offchain sequence
 
 - `PriceProducer` checks in the `StyksPriceFeed` when is the next heartbeat.
 - If the time is right, it starts the update procedure.
-- `PriceProducer` loads list of active `(CoinGecko identifier -> PriceFeedId)`
-  mappings from the `StyksBlockySupplier` contract configuration.
-- `PriceProducer` calls the `BlockyAPI` with the list of symbols to
-  fetch the latest prices. It uses the guest program that matches the
-  `wasm_hash` configured in the `StyksBlockySupplier` contract.
-- `BlockyAPI` responds with the signed prices.
-- `PriceProducer` posts the signed prices to the `StyksBlockySupplier` contract.
+- `PriceProducer` loads list of active `(Make's identifier -> PriceFeedId)`
+  mappings from the `StyksMakeSupplier` contract configuration.
+- `PriceProducer` calls the `MakeServer` with the list of symbols to
+  fetch the latest prices.
+- `MakeServer` responds with the signed prices.
+- `PriceProducer` posts the signed prices to the `StyksMakeSupplier` contract.
 
-### Step 2: `StyksBlockySupplier` onchain sequence
+### Step 2: `StyksMakeSupplier` onchain sequence
 
-- `StyksBlockySupplier` verifies input:
+- `StyksMakeSupplier` verifies input:
   - the signature matches the configured `public_key`,
-  - the guest program hash matches `wasm_hash`,
   - the reported timestamp is within `timestamp_tolerance` of current time,
   - the identifier can be mapped to a configured `PriceFeedId`.
 - If all checks pass, it posts raw prices in the format of list(`PriceFeedId` ->
@@ -305,7 +276,7 @@ sequenceDiagram
 
 ### Step 3: `StyksPriceFeed` onchain sequence
 
-- `StyksPriceFeed` checks if the caller (the `StyksBlockySupplier` contract) has the `PriceSupplierRole` role.
+- `StyksPriceFeed` checks if the caller (the `StyksMakeSupplier` contract) has the `PriceSupplierRole` role.
 - `StyksPriceFeed` for each price in the list checks the following:
   - the `PriceFeedId` is enabled,
   - the price is valid,
@@ -323,8 +294,8 @@ features that we are considering to implement.
 ### Multiple Price Producers
 
 In the above model, there is only one `PriceProducer` that is responsible for
-fetching the prices from the `BlockyAPI` and posting them to the
-`StyksBlockySupplier` contract. To make system more resilient, we must allow
+fetching the prices from the `MakeServer` and posting them to the
+`StyksMakeSupplier` contract. To make system more resilient, we must allow
 multiple `PriceProducers` to work in parallel.
 
 We would like to introduce a token-based staking mechanism, that would allow
@@ -337,18 +308,6 @@ maintain the system, but it is natural to us to transfer the ownership to the
 community. We think of a token-based voting DAO that would allow the community
 to vote on the changes to the system, such as adding new price feeds, changing
 the configuration and manage roles.
-
-### Beyond Price Feeds
-
-Styks is a price oracle, but it can be used for porting any data from the
-outside world to the blockchain. There are two main use cases we are internally
-exploring:
-
-- Porting data from other blockchains to Casper. For example, we can use
-  Blocky to fetch the balance of the Bitcoin address and build an escrow
-  to practically exchange BTC for CSPR.
-- Quering OpenAI API and porting the results to the blockchain. This can be a
-  base for decentralized AI agents.
 
 ## Join the Community
 
