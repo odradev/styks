@@ -1,0 +1,9 @@
+last_updated = "2026-01-22T09:56:14Z"
+
+[[contracts]]
+name = "StyksPriceFeed"
+package_hash = "hash-814fedbd4ae53b82ab19b1ff6698ce412445c3266271fcb639986d37dc0ae121"
+
+[[contracts]]
+name = "StyksMakeSupplier"
+package_hash = "hash-acd6c58964fb474c686b02ca1945364cff192519074376de14a97b58e07f9d96"
