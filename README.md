@@ -10,15 +10,12 @@ Styks is deployed to the Casper Mainnet.
 - <span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: [cspr.live/814f...e121](https://cspr.live/contract-package/814fedbd4ae53b82ab19b1ff6698ce412445c3266271fcb639986d37dc0ae121).
 - <span style="color: #b5e853"><b>StyksMakeSupplier</b></span> contract: [cspr.live/acd6...9d96](https://cspr.live/contract-package/acd6c58964fb474c686b02ca1945364cff192519074376de14a97b58e07f9d96).
 - Available price feed: <span style="color: #b5e853"><b>CSPRUSD</b></span>.
-- Current heartbeat interval: <span style="color: #b5e853"><b>30 minutes</
+- Current heartbeat interval: <span style="color: #b5e853"><b>30 minutes</b></span>.
 
 Styks is also deployed on the Casper Testnet.
 
-- Status: <span style="color: #b5e853"><b>Active</b></span>.
 - <span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: [testnet.cspr.live/2879...1acc](https://testnet.cspr.live/contract-package/2879d6e927289197aab0101cc033f532fe22e4ab4686e44b5743cb1333031acc).
 - <span style="color: #b5e853"><b>StyksMakeSupplier</b></span> contract: [testnet.cspr.live/708b...bf36](https://testnet.cspr.live/contract-package/708b4bae0dbe3f0f118410572eb629d235da6b06c776a8dfefaa7decf9f7bf36).
-- Available price feed: <span style="color: #b5e853"><b>CSPRUSD</b></span>.
-- Current heartbeat interval: <span style="color: #b5e853"><b>30 minutes</b></span>.
 
 
 Recent changes:
