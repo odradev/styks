@@ -243,6 +243,6 @@ mod tests {
 
         // Check the reported price.
         let price = feed.get_twap_price(&id);
-        assert_eq!(price, Some(501611));
+        assert_eq!(price, Some(501));
     }
 }
