@@ -8,20 +8,20 @@ Styks is deployed to the Casper Mainnet.
 
 - Status: <span style="color: #b5e853"><b>Active</b></span>.
 - <span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: [cspr.live/814f...e121](https://cspr.live/contract-package/814fedbd4ae53b82ab19b1ff6698ce412445c3266271fcb639986d37dc0ae121).
-- <span style="color: #b5e853"><b>StyksMakeSupplier</b></span> contract: [cspr.live/acd6...9d96](https://cspr.live/contract-package/acd6c58964fb474c686b02ca1945364cff192519074376de14a97b58e07f9d96).
+- <span style="color: #b5e853"><b>StyksCsprCloudSupplier</b></span> contract: [cspr.live/acd6...9d96](https://cspr.live/contract-package/acd6c58964fb474c686b02ca1945364cff192519074376de14a97b58e07f9d96).
 - Available price feed: <span style="color: #b5e853"><b>CSPRUSD</b></span>.
 - Current heartbeat interval: <span style="color: #b5e853"><b>30 minutes</b></span>.
 
 Styks is also deployed on the Casper Testnet.
 
 - <span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: [testnet.cspr.live/2879...1acc](https://testnet.cspr.live/contract-package/2879d6e927289197aab0101cc033f532fe22e4ab4686e44b5743cb1333031acc).
-- <span style="color: #b5e853"><b>StyksMakeSupplier</b></span> contract: [testnet.cspr.live/708b...bf36](https://testnet.cspr.live/contract-package/708b4bae0dbe3f0f118410572eb629d235da6b06c776a8dfefaa7decf9f7bf36).
+- <span style="color: #b5e853"><b>StyksCsprCloudSupplier</b></span> contract: [testnet.cspr.live/708b...bf36](https://testnet.cspr.live/contract-package/708b4bae0dbe3f0f118410572eb629d235da6b06c776a8dfefaa7decf9f7bf36).
 
 
 Recent changes:
 
 - 2026/01/22 - Mainnet launch.
-- 2025/01/04 - Added support for Make's attestation service.
+- 2025/01/04 - Added support for CSPR.cloud's attestation service.
 - 2025/08/18 - Heartbeat interval changed to 30 minutes.
 
 ---
@@ -74,11 +74,11 @@ let price: Option<u64> = runtime::call_versioned_contract(
 
 Styks architecture consists of four main components:
 
-- Make Server - for fetching the latest, signed prices.
-- Onchain smart contracts - `StyksMakeSupplier` and `StyksPriceFeed` for storing
+- CSPR.cloud Server - for fetching the latest, signed prices.
+- Onchain smart contracts - `StyksCsprCloudSupplier` and `StyksPriceFeed` for storing
   and operating the prices onchain.
 - `PriceProducer` - offchain component, that is responsible for fetching the
-  latest prices from the Make Server and posting them to the `StyksMakeSupplier`
+  latest prices from the CSPR.cloud Server and posting them to the `StyksCsprCloudSupplier`
   contract.
 - `StyksAdmin` - admin account, that is responsible for maintaining the correct configuration of smart contracts.
 
@@ -87,14 +87,14 @@ Styks architecture consists of four main components:
 flowchart TB
 
     subgraph Offchain Actors
-      MakeServer
+      CsprCloudServer
       PriceProducer
       StyksAdmin
     end
 
     subgraph Casper Blockchain
       OnchainConsumer
-      StyksMakeSupplier
+      StyksCsprCloudSupplier
       StyksPriceFeed
     end
 
@@ -102,22 +102,22 @@ flowchart TB
     OnchainConsumer -->|"get_twap_price(symbol)"| StyksPriceFeed
     StyksPriceFeed -->|price| OnchainConsumer
 
-    %% Bringing the price onchain using Make.
-    PriceProducer -->|"get prices"| MakeServer
-    MakeServer -->|"prices"| PriceProducer
-    PriceProducer -->|"post_prices(signed_prices)"| StyksMakeSupplier
-    StyksMakeSupplier -->|"post_prices(prices)"| StyksPriceFeed
+    %% Bringing the price onchain using CSPR.cloud.
+    PriceProducer -->|"get prices"| CsprCloudServer
+    CsprCloudServer -->|"prices"| PriceProducer
+    PriceProducer -->|"post_prices(signed_prices)"| StyksCsprCloudSupplier
+    StyksCsprCloudSupplier -->|"post_prices(prices)"| StyksPriceFeed
 
     %% Define price feeds.
     StyksAdmin -->|"configure"| StyksPriceFeed
-    StyksAdmin -->|"configure"| StyksMakeSupplier
+    StyksAdmin -->|"configure"| StyksCsprCloudSupplier
 ```
 
-## Make
+## CSPR.cloud
 
-Styks leverages [Make](https://cspr.build/), a trusted price feed.
+Styks leverages [CSPR.cloud](https://cspr.build/), a trusted price feed.
 
-Make uses Amazon's AWS Nitro Enclaves to securely run guest programs that fetch
+CSPR.cloud uses Amazon's AWS Nitro Enclaves to securely run guest programs that fetch
 data from the outside world, sign it cryptographically and return it to the
 requestor. This way, the data is guaranteed to be authentic and unmodified.
 
@@ -198,9 +198,9 @@ Configuration of the contract:
 - `twap_tolerance`,
 - `price_feed_ids` - list of enabled price feeds.
 
-## StyksMakeSupplier Smart Contract
+## StyksCsprCloudSupplier Smart Contract
 
-The `StyksMakeSupplier` smart contract is a bridge between the Make server and
+The `StyksCsprCloudSupplier` smart contract is a bridge between the CSPR.cloud server and
 the `StyksPriceFeed` smart contract. It is responsible for receiving the signed
 prices from the `PriceProducer` and posting them to the `StyksPriceFeed` after
 verifying authenticity and freshness.
@@ -210,7 +210,7 @@ It is configured as follows:
 - `public_key` - public key used to verify the signature of the prices.
 - `price_feed_address` - address of the `StyksPriceFeed` contract,
   where the prices are posted.
-- `feed_ids` - list of mappings between Make's identifiers and
+- `feed_ids` - list of mappings between CSPR.cloud's identifiers and
   on-chain PriceFeedIds. Example: `("1", "CSPRUSD")`.
 - `timestamp_tolerance` - allowed drift (in seconds) between the reported timestamp
   and the current on-chain time.
@@ -224,7 +224,7 @@ Note:
 - Anyone can submit signed data via `report_signed_prices`, but only data that
   is correctly signed with `public_key`, produced by the expected `wasm_hash`,
   and whose timestamp is within `timestamp_tolerance` will be forwarded to the feed.
-- The `StyksMakeSupplier` contract must have the `PriceSupplierRole` assigned
+- The `StyksCsprCloudSupplier` contract must have the `PriceSupplierRole` assigned
   in the `StyksPriceFeed` contract in order to be able to post the prices there.
 
 ## Price Update Procedure
@@ -236,35 +236,35 @@ with the latest prices.
 
 sequenceDiagram
     participant PriceProducer
-    participant MakeServer
-    participant StyksMakeSupplier
+    participant CsprCloudServer
+    participant StyksCsprCloudSupplier
     participant StyksPriceFeed
 
-    PriceProducer->>MakeServer: get_prices(symbols)
-    MakeServer-->>PriceProducer: signed_prices
-    PriceProducer->>StyksMakeSupplier: post_prices(signed_prices)
-    StyksMakeSupplier->>StyksMakeSupplier: validate signature, timestamp, mapping
-    StyksMakeSupplier->>StyksPriceFeed: post_prices(prices)
+    PriceProducer->>CsprCloudServer: get_prices(symbols)
+    CsprCloudServer-->>PriceProducer: signed_prices
+    PriceProducer->>StyksCsprCloudSupplier: post_prices(signed_prices)
+    StyksCsprCloudSupplier->>StyksCsprCloudSupplier: validate signature, timestamp, mapping
+    StyksCsprCloudSupplier->>StyksPriceFeed: post_prices(prices)
 
     StyksPriceFeed->>StyksPriceFeed: validate input
-    StyksPriceFeed-->>StyksMakeSupplier: prices_validated
-    StyksMakeSupplier-->>PriceProducer: prices_posted
+    StyksPriceFeed-->>StyksCsprCloudSupplier: prices_validated
+    StyksCsprCloudSupplier-->>PriceProducer: prices_posted
 ```
 
 ### Step 1: `PriceProducer` offchain sequence
 
 - `PriceProducer` checks in the `StyksPriceFeed` when is the next heartbeat.
 - If the time is right, it starts the update procedure.
-- `PriceProducer` loads list of active `(Make's identifier -> PriceFeedId)`
-  mappings from the `StyksMakeSupplier` contract configuration.
-- `PriceProducer` calls the `MakeServer` with the list of symbols to
+- `PriceProducer` loads list of active `(CSPR.cloud's identifier -> PriceFeedId)`
+  mappings from the `StyksCsprCloudSupplier` contract configuration.
+- `PriceProducer` calls the `CsprCloudServer` with the list of symbols to
   fetch the latest prices.
-- `MakeServer` responds with the signed prices.
-- `PriceProducer` posts the signed prices to the `StyksMakeSupplier` contract.
+- `CsprCloudServer` responds with the signed prices.
+- `PriceProducer` posts the signed prices to the `StyksCsprCloudSupplier` contract.
 
-### Step 2: `StyksMakeSupplier` onchain sequence
+### Step 2: `StyksCsprCloudSupplier` onchain sequence
 
-- `StyksMakeSupplier` verifies input:
+- `StyksCsprCloudSupplier` verifies input:
   - the signature matches the configured `public_key`,
   - the reported timestamp is within `timestamp_tolerance` of current time,
   - the identifier can be mapped to a configured `PriceFeedId`.
@@ -273,7 +273,7 @@ sequenceDiagram
 
 ### Step 3: `StyksPriceFeed` onchain sequence
 
-- `StyksPriceFeed` checks if the caller (the `StyksMakeSupplier` contract) has the `PriceSupplierRole` role.
+- `StyksPriceFeed` checks if the caller (the `StyksCsprCloudSupplier` contract) has the `PriceSupplierRole` role.
 - `StyksPriceFeed` for each price in the list checks the following:
   - the `PriceFeedId` is enabled,
   - the price is valid,
@@ -291,8 +291,8 @@ features that we are considering to implement.
 ### Multiple Price Producers
 
 In the above model, there is only one `PriceProducer` that is responsible for
-fetching the prices from the `MakeServer` and posting them to the
-`StyksMakeSupplier` contract. To make system more resilient, we must allow
+fetching the prices from the `CsprCloudServer` and posting them to the
+`StyksCsprCloudSupplier` contract. To make system more resilient, we must allow
 multiple `PriceProducers` to work in parallel.
 
 We would like to introduce a token-based staking mechanism, that would allow

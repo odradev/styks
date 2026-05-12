@@ -90,19 +90,19 @@
 <ul>
 <li>Status: <span style="color: #b5e853"><b>Active</b></span>.</li>
 <li><span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: <a href="https://cspr.live/contract-package/814fedbd4ae53b82ab19b1ff6698ce412445c3266271fcb639986d37dc0ae121" rel="noopener noreferrer" target="_blank">cspr.live/814f...e121</a>.</li>
-<li><span style="color: #b5e853"><b>StyksMakeSupplier</b></span> contract: <a href="https://cspr.live/contract-package/acd6c58964fb474c686b02ca1945364cff192519074376de14a97b58e07f9d96" rel="noopener noreferrer" target="_blank">cspr.live/acd6...9d96</a>.</li>
+<li><span style="color: #b5e853"><b>StyksCsprCloudSupplier</b></span> contract: <a href="https://cspr.live/contract-package/acd6c58964fb474c686b02ca1945364cff192519074376de14a97b58e07f9d96" rel="noopener noreferrer" target="_blank">cspr.live/acd6...9d96</a>.</li>
 <li>Available price feed: <span style="color: #b5e853"><b>CSPRUSD</b></span>.</li>
 <li>Current heartbeat interval: <span style="color: #b5e853"><b>30 minutes</b></span>.</li>
 </ul>
 <p>Styks is also deployed on the Casper Testnet.</p>
 <ul>
 <li><span style="color: #b5e853"><b>StyksPriceFeed</b></span> contract: <a href="https://testnet.cspr.live/contract-package/2879d6e927289197aab0101cc033f532fe22e4ab4686e44b5743cb1333031acc" rel="noopener noreferrer" target="_blank">testnet.cspr.live/2879...1acc</a>.</li>
-<li><span style="color: #b5e853"><b>StyksMakeSupplier</b></span> contract: <a href="https://testnet.cspr.live/contract-package/708b4bae0dbe3f0f118410572eb629d235da6b06c776a8dfefaa7decf9f7bf36" rel="noopener noreferrer" target="_blank">testnet.cspr.live/708b...bf36</a>.</li>
+<li><span style="color: #b5e853"><b>StyksCsprCloudSupplier</b></span> contract: <a href="https://testnet.cspr.live/contract-package/708b4bae0dbe3f0f118410572eb629d235da6b06c776a8dfefaa7decf9f7bf36" rel="noopener noreferrer" target="_blank">testnet.cspr.live/708b...bf36</a>.</li>
 </ul>
 <p>Recent changes:</p>
 <ul>
 <li>2026/01/22 - Mainnet launch.</li>
-<li>2025/01/04 - Added support for Make's attestation service.</li>
+<li>2025/01/04 - Added support for CSPR.cloud's attestation service.</li>
 <li>2025/08/18 - Heartbeat interval changed to 30 minutes.</li>
 </ul>
 <hr/>
@@ -112,15 +112,15 @@
 <li><a href="#why-does-casper-need-a-price-oracle">Why does Casper need a price oracle?</a></li>
 <li><a href="#onchain-integration">Onchain integration</a></li>
 <li><a href="#system-high-level-architecture">System High Level Architecture</a></li>
-<li><a href="#make">Make</a></li>
+<li><a href="#csprcloud">CSPR.cloud</a></li>
 <li><a href="#heartbeat">Heartbeat</a></li>
 <li><a href="#time-weighted-average-price-twap">Time Weighted Average Price (TWAP)</a></li>
 <li><a href="#price-feed-id">Price Feed Id</a></li>
 <li><a href="#stykspricefeed-smart-contract">StyksPriceFeed Smart Contract</a></li>
-<li><a href="#styksmakesupplier-smart-contract">StyksMakeSupplier Smart Contract</a></li>
+<li><a href="#stykscsprcloudsupplier-smart-contract">StyksCsprCloudSupplier Smart Contract</a></li>
 <li><a href="#price-update-procedure">Price Update Procedure</a><ul>
 <li><a href="#step-1-priceproducer-offchain-sequence">Step 1: PriceProducer offchain sequence</a></li>
-<li><a href="#step-2-styksmakesupplier-onchain-sequence">Step 2: StyksMakeSupplier onchain sequence</a></li>
+<li><a href="#step-2-stykscsprcloudsupplier-onchain-sequence">Step 2: StyksCsprCloudSupplier onchain sequence</a></li>
 <li><a href="#step-3-stykspricefeed-onchain-sequence">Step 3: StyksPriceFeed onchain sequence</a></li>
 </ul>
 </li>
@@ -163,11 +163,11 @@ let price: Option&lt;u64&gt; = styks.get_twap_price(String::from("CSPRUSD"));
 <h2 id="system-high-level-architecture">System High Level Architecture</h2>
 <p>Styks architecture consists of four main components:</p>
 <ul>
-<li>Make Server - for fetching the latest, signed prices.</li>
-<li>Onchain smart contracts - <code class="highlighter-rouge">StyksMakeSupplier</code> and <code class="highlighter-rouge">StyksPriceFeed</code> for storing
+<li>CSPR.cloud Server - for fetching the latest, signed prices.</li>
+<li>Onchain smart contracts - <code class="highlighter-rouge">StyksCsprCloudSupplier</code> and <code class="highlighter-rouge">StyksPriceFeed</code> for storing
   and operating the prices onchain.</li>
 <li><code class="highlighter-rouge">PriceProducer</code> - offchain component, that is responsible for fetching the
-  latest prices from the Make Server and posting them to the <code class="highlighter-rouge">StyksMakeSupplier</code>
+  latest prices from the CSPR.cloud Server and posting them to the <code class="highlighter-rouge">StyksCsprCloudSupplier</code>
   contract.</li>
 <li><code class="highlighter-rouge">StyksAdmin</code> - admin account, that is responsible for maintaining the correct configuration of smart contracts.</li>
 </ul>
@@ -175,14 +175,14 @@ let price: Option&lt;u64&gt; = styks.get_twap_price(String::from("CSPRUSD"));
 flowchart TB
 
     subgraph Offchain Actors
-      MakeServer
+      CsprCloudServer
       PriceProducer
       StyksAdmin
     end
 
     subgraph Casper Blockchain
       OnchainConsumer
-      StyksMakeSupplier
+      StyksCsprCloudSupplier
       StyksPriceFeed
     end
 
@@ -190,19 +190,19 @@ flowchart TB
     OnchainConsumer --&gt;|"get_twap_price(symbol)"| StyksPriceFeed
     StyksPriceFeed --&gt;|price| OnchainConsumer
 
-    %% Bringing the price onchain using Make.
-    PriceProducer --&gt;|"get prices"| MakeServer
-    MakeServer --&gt;|"prices"| PriceProducer
-    PriceProducer --&gt;|"post_prices(signed_prices)"| StyksMakeSupplier
-    StyksMakeSupplier --&gt;|"post_prices(prices)"| StyksPriceFeed
+    %% Bringing the price onchain using CSPR.cloud.
+    PriceProducer --&gt;|"get prices"| CsprCloudServer
+    CsprCloudServer --&gt;|"prices"| PriceProducer
+    PriceProducer --&gt;|"post_prices(signed_prices)"| StyksCsprCloudSupplier
+    StyksCsprCloudSupplier --&gt;|"post_prices(prices)"| StyksPriceFeed
 
     %% Define price feeds.
     StyksAdmin --&gt;|"configure"| StyksPriceFeed
-    StyksAdmin --&gt;|"configure"| StyksMakeSupplier
+    StyksAdmin --&gt;|"configure"| StyksCsprCloudSupplier
 </div>
-<h2 id="make">Make</h2>
-<p>Styks leverages <a href="https://cspr.build/" rel="noopener noreferrer" target="_blank">Make</a>, a trusted price feed.</p>
-<p>Make uses Amazon's AWS Nitro Enclaves to securely run guest programs that fetch
+<h2 id="csprcloud">CSPR.cloud</h2>
+<p>Styks leverages <a href="https://cspr.build/" rel="noopener noreferrer" target="_blank">CSPR.cloud</a>, a trusted price feed.</p>
+<p>CSPR.cloud uses Amazon's AWS Nitro Enclaves to securely run guest programs that fetch
 data from the outside world, sign it cryptographically and return it to the
 requestor. This way, the data is guaranteed to be authentic and unmodified.</p>
 <h2 id="heartbeat">Heartbeat</h2>
@@ -268,8 +268,8 @@ of the missed heartbeats or not being configured.</p>
 <li><code class="highlighter-rouge">twap_tolerance</code>,</li>
 <li><code class="highlighter-rouge">price_feed_ids</code> - list of enabled price feeds.</li>
 </ul>
-<h2 id="styksmakesupplier-smart-contract">StyksMakeSupplier Smart Contract</h2>
-<p>The <code class="highlighter-rouge">StyksMakeSupplier</code> smart contract is a bridge between the Make server and
+<h2 id="stykscsprcloudsupplier-smart-contract">StyksCsprCloudSupplier Smart Contract</h2>
+<p>The <code class="highlighter-rouge">StyksCsprCloudSupplier</code> smart contract is a bridge between the CSPR.cloud server and
 the <code class="highlighter-rouge">StyksPriceFeed</code> smart contract. It is responsible for receiving the signed
 prices from the <code class="highlighter-rouge">PriceProducer</code> and posting them to the <code class="highlighter-rouge">StyksPriceFeed</code> after
 verifying authenticity and freshness.</p>
@@ -278,7 +278,7 @@ verifying authenticity and freshness.</p>
 <li><code class="highlighter-rouge">public_key</code> - public key used to verify the signature of the prices.</li>
 <li><code class="highlighter-rouge">price_feed_address</code> - address of the <code class="highlighter-rouge">StyksPriceFeed</code> contract,
   where the prices are posted.</li>
-<li><code class="highlighter-rouge">feed_ids</code> - list of mappings between Make's identifiers and
+<li><code class="highlighter-rouge">feed_ids</code> - list of mappings between CSPR.cloud's identifiers and
   on-chain PriceFeedIds. Example: <code class="highlighter-rouge">("1", "CSPRUSD")</code>.</li>
 <li><code class="highlighter-rouge">timestamp_tolerance</code> - allowed drift (in seconds) between the reported timestamp
   and the current on-chain time.</li>
@@ -292,7 +292,7 @@ verifying authenticity and freshness.</p>
 - Anyone can submit signed data via <code class="highlighter-rouge">report_signed_prices</code>, but only data that
   is correctly signed with <code class="highlighter-rouge">public_key</code>, produced by the expected <code class="highlighter-rouge">wasm_hash</code>,
   and whose timestamp is within <code class="highlighter-rouge">timestamp_tolerance</code> will be forwarded to the feed.
-- The <code class="highlighter-rouge">StyksMakeSupplier</code> contract must have the <code class="highlighter-rouge">PriceSupplierRole</code> assigned
+- The <code class="highlighter-rouge">StyksCsprCloudSupplier</code> contract must have the <code class="highlighter-rouge">PriceSupplierRole</code> assigned
   in the <code class="highlighter-rouge">StyksPriceFeed</code> contract in order to be able to post the prices there.</p>
 <h2 id="price-update-procedure">Price Update Procedure</h2>
 <p>Below is the exact sequence of actions that are taken to update the price feed
@@ -300,34 +300,34 @@ with the latest prices.</p>
 <div class="mermaid cf">
 sequenceDiagram
     participant PriceProducer
-    participant MakeServer
-    participant StyksMakeSupplier
+    participant CsprCloudServer
+    participant StyksCsprCloudSupplier
     participant StyksPriceFeed
 
-    PriceProducer-&gt;&gt;MakeServer: get_prices(symbols)
-    MakeServer--&gt;&gt;PriceProducer: signed_prices
-    PriceProducer-&gt;&gt;StyksMakeSupplier: post_prices(signed_prices)
-    StyksMakeSupplier-&gt;&gt;StyksMakeSupplier: validate signature, timestamp, mapping
-    StyksMakeSupplier-&gt;&gt;StyksPriceFeed: post_prices(prices)
+    PriceProducer-&gt;&gt;CsprCloudServer: get_prices(symbols)
+    CsprCloudServer--&gt;&gt;PriceProducer: signed_prices
+    PriceProducer-&gt;&gt;StyksCsprCloudSupplier: post_prices(signed_prices)
+    StyksCsprCloudSupplier-&gt;&gt;StyksCsprCloudSupplier: validate signature, timestamp, mapping
+    StyksCsprCloudSupplier-&gt;&gt;StyksPriceFeed: post_prices(prices)
 
     StyksPriceFeed-&gt;&gt;StyksPriceFeed: validate input
-    StyksPriceFeed--&gt;&gt;StyksMakeSupplier: prices_validated
-    StyksMakeSupplier--&gt;&gt;PriceProducer: prices_posted
+    StyksPriceFeed--&gt;&gt;StyksCsprCloudSupplier: prices_validated
+    StyksCsprCloudSupplier--&gt;&gt;PriceProducer: prices_posted
 </div>
 <h3 id="step-1-priceproducer-offchain-sequence">Step 1: <code class="highlighter-rouge">PriceProducer</code> offchain sequence</h3>
 <ul>
 <li><code class="highlighter-rouge">PriceProducer</code> checks in the <code class="highlighter-rouge">StyksPriceFeed</code> when is the next heartbeat.</li>
 <li>If the time is right, it starts the update procedure.</li>
-<li><code class="highlighter-rouge">PriceProducer</code> loads list of active <code class="highlighter-rouge">(Make's identifier -&gt; PriceFeedId)</code>
-  mappings from the <code class="highlighter-rouge">StyksMakeSupplier</code> contract configuration.</li>
-<li><code class="highlighter-rouge">PriceProducer</code> calls the <code class="highlighter-rouge">MakeServer</code> with the list of symbols to
+<li><code class="highlighter-rouge">PriceProducer</code> loads list of active <code class="highlighter-rouge">(CSPR.cloud's identifier -&gt; PriceFeedId)</code>
+  mappings from the <code class="highlighter-rouge">StyksCsprCloudSupplier</code> contract configuration.</li>
+<li><code class="highlighter-rouge">PriceProducer</code> calls the <code class="highlighter-rouge">CsprCloudServer</code> with the list of symbols to
   fetch the latest prices.</li>
-<li><code class="highlighter-rouge">MakeServer</code> responds with the signed prices.</li>
-<li><code class="highlighter-rouge">PriceProducer</code> posts the signed prices to the <code class="highlighter-rouge">StyksMakeSupplier</code> contract.</li>
+<li><code class="highlighter-rouge">CsprCloudServer</code> responds with the signed prices.</li>
+<li><code class="highlighter-rouge">PriceProducer</code> posts the signed prices to the <code class="highlighter-rouge">StyksCsprCloudSupplier</code> contract.</li>
 </ul>
-<h3 id="step-2-styksmakesupplier-onchain-sequence">Step 2: <code class="highlighter-rouge">StyksMakeSupplier</code> onchain sequence</h3>
+<h3 id="step-2-stykscsprcloudsupplier-onchain-sequence">Step 2: <code class="highlighter-rouge">StyksCsprCloudSupplier</code> onchain sequence</h3>
 <ul>
-<li><code class="highlighter-rouge">StyksMakeSupplier</code> verifies input:</li>
+<li><code class="highlighter-rouge">StyksCsprCloudSupplier</code> verifies input:</li>
 <li>the signature matches the configured <code class="highlighter-rouge">public_key</code>,</li>
 <li>the reported timestamp is within <code class="highlighter-rouge">timestamp_tolerance</code> of current time,</li>
 <li>the identifier can be mapped to a configured <code class="highlighter-rouge">PriceFeedId</code>.</li>
@@ -336,7 +336,7 @@ sequenceDiagram
 </ul>
 <h3 id="step-3-stykspricefeed-onchain-sequence">Step 3: <code class="highlighter-rouge">StyksPriceFeed</code> onchain sequence</h3>
 <ul>
-<li><code class="highlighter-rouge">StyksPriceFeed</code> checks if the caller (the <code class="highlighter-rouge">StyksMakeSupplier</code> contract) has the <code class="highlighter-rouge">PriceSupplierRole</code> role.</li>
+<li><code class="highlighter-rouge">StyksPriceFeed</code> checks if the caller (the <code class="highlighter-rouge">StyksCsprCloudSupplier</code> contract) has the <code class="highlighter-rouge">PriceSupplierRole</code> role.</li>
 <li><code class="highlighter-rouge">StyksPriceFeed</code> for each price in the list checks the following:</li>
 <li>the <code class="highlighter-rouge">PriceFeedId</code> is enabled,</li>
 <li>the price is valid,</li>
@@ -351,8 +351,8 @@ of the price oracle. It is simple, secure and efficient. However, there are some
 features that we are considering to implement.</p>
 <h3 id="multiple-price-producers">Multiple Price Producers</h3>
 <p>In the above model, there is only one <code class="highlighter-rouge">PriceProducer</code> that is responsible for
-fetching the prices from the <code class="highlighter-rouge">MakeServer</code> and posting them to the
-<code class="highlighter-rouge">StyksMakeSupplier</code> contract. To make system more resilient, we must allow
+fetching the prices from the <code class="highlighter-rouge">CsprCloudServer</code> and posting them to the
+<code class="highlighter-rouge">StyksCsprCloudSupplier</code> contract. To make system more resilient, we must allow
 multiple <code class="highlighter-rouge">PriceProducers</code> to work in parallel.</p>
 <p>We would like to introduce a token-based staking mechanism, that would allow
 anyone to become a <code class="highlighter-rouge">PriceProducer</code>.</p>
