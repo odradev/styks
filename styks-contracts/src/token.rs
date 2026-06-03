@@ -71,5 +71,11 @@ impl StyksToken {
             fn pause(&mut self);
             fn unpause(&mut self);
         }
+
+        to self.ownable {
+            fn get_owner(&self) -> Address;
+            fn transfer_ownership(&mut self, new_owner: &Address);
+            fn renounce_ownership(&mut self);
+        }
     }
 }

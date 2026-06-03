@@ -7,6 +7,9 @@ pub enum StyksSupplierError {
     ConfigNotSet = 46000,
     PriceFeedIdNotFound = 46001,
 
+    // Report flow errors.
+    RateLimited = 46500,
+
     // Role errors.
     NotAdminRole = 46100,
     NotConfigManagerRole = 46101,
