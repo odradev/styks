@@ -9,11 +9,11 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-odra = "2.6.0"
-odra-test = "2.6.0"
-odra-build = "2.6.0"
-odra-cli = "2.6.0"
-odra-modules = "2.6.0"
+odra = "2.8.2"
+odra-test = "2.8.2"
+odra-build = "2.8.2"
+odra-cli = "2.8.2"
+odra-modules = "2.8.2"
 
 [profile.release]
 codegen-units = 1
